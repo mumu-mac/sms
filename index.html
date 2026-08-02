@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>mumuSVIP商家号 - 账号激活</title>
+  <style>
+    :root{
+      --bg: #eef2f8;
+      --text: #1b2230;
+      --muted: #667085;
+      --line: #e4e7f1;
+      --panel: #ffffff;
+      --panel-soft: #f8f9ff;
+      --purple: #7668f7;
+      --purple-deep: #5b67ef;
+      --purple-light: #b2c9ff;
+      --orange-bg: #fff7ed;
+      --orange-line: #f0d6b6;
+      --orange-text: #cf7a2c;
+      --shadow: 0 14px 32px rgba(82, 92, 149, .10);
+      --copy-size: 14px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;color:var(--text);overflow-x:hidden;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
+    body{display:flex;justify-content:center;align-items:flex-start}
+
+    .stage{
+      --fit-scale: 1;
+      width:100%;
+      min-height:100dvh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      overflow:hidden;
+      padding:0 0 14px;
+    }
+
+    .phone{
+      width:393px;
+      flex:0 0 393px;
+      min-height:100dvh;
+      background:linear-gradient(180deg,#f7f8fc 0%,#eef2f8 100%);
+      position:relative;
+      overflow:hidden;
+      transform:scale(var(--fit-scale));
+      transform-origin:top center;
+    }
+
+    .card{
+      margin:12px 12px 14px;
+      border-radius:26px;
+      background:var(--panel);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      border:1px solid rgba(132, 143, 189, .08);
+    }
+
+    .hero{
+      position:relative;
+      padding:16px 20px 14px;
+      min-height:168px;
+      color:#fff;
+      background:
+        radial-gradient(105% 62% at 68% 116%, rgba(179,210,255,.48) 0 45%, rgba(179,210,255,0) 46%),
+        linear-gradient(104deg, rgba(255,255,255,0) 0 28%, rgba(255,255,255,.12) 28.4% 41%, rgba(255,255,255,0) 41.4% 100%),
+        linear-gradient(118deg,#755ff7 0%,#776bf8 48%,#8abafb 100%);
+      overflow:hidden;
+    }
+    .hero:before{
+      content:"";position:absolute;right:-28px;top:-28px;width:104px;height:104px;border-radius:50%;background:rgba(255,255,255,.16);transform:none
+    }
+    .hero:after{
+      content:"";position:absolute;right:27px;top:79px;width:125px;height:125px;border:4px solid rgba(255,255,255,.13);border-radius:35px;transform:rotate(-9deg)
+    }
+    .hero-top{
+      display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1
+    }
+    .safe{
+      display:flex;align-items:center;gap:6px;font-size:var(--copy-size);font-weight:600
+    }
+    .safe-dot{
+      width:18px;height:18px;border-radius:50%;border:1.5px solid rgba(255,255,255,.82);position:relative;flex:none
+    }
+    .safe-dot:before{
+      content:"";position:absolute;left:4px;top:5px;width:6px;height:8px;border-right:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(40deg)
+    }
+    .active-pill{
+      padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.34);font-size:var(--copy-size);font-weight:600;line-height:1
+    }
+    .hero h1{
+      margin:46px 0 10px;
+      font-size:26px;
+      line-height:1;
+      font-weight:900 !important;
+      color:#fff;
+      text-shadow:
+        .3px 0 0 currentColor,
+        -.3px 0 0 currentColor,
+        0 .3px 0 currentColor,
+        0 -.3px 0 currentColor;
+      letter-spacing:.35px;
+      position:relative;
+      z-index:1;
+    }
+    .hero p{
+      margin:0;
+      font-size:12px;
+      line-height:1.35;
+      font-weight:700;
+      opacity:.9;
+      position:relative;
+      z-index:1;
+    }
+    .hero-art{
+      position:absolute;right:48px;bottom:2px;width:72px;height:72px;border-radius:20px;background:rgba(255,255,255,.045);transform:rotate(0deg)
+    }
+    .hero-art:before{
+      content:"";position:absolute;left:17px;top:10px;width:22.5px;height:40.5px;border-right:9.6px solid rgba(255,255,255,.67);border-bottom:9.6px solid rgba(255,255,255,.67);transform:rotate(39deg);border-radius:4px
+    }
+
+    .notice{
+      margin:-8px 26px 10px;
+      min-height:40px;
+      border-radius:23px;
+      background:linear-gradient(180deg,#fffaf3,#fff6eb);
+      border:1px solid rgba(239, 212, 181, .72);
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:4px 16px;
+      box-shadow:0 5px 14px rgba(241,166,63,.05);
+      position:relative;
+      z-index:2;
+    }
+    .warn{
+      width:24px;height:24px;border-radius:8px;background:#ffcc55;color:#7b4900;font-size:var(--copy-size);font-weight:900;display:flex;align-items:center;justify-content:center;flex:none
+    }
+    .notice strong{
+      font-size:14px;
+      line-height:1.3;
+      font-family:inherit;
+      font-weight:inherit;
+      color:#000;
+      letter-spacing:0;
+      white-space:pre-line;
+      font-synthesis:none;
+    }
+
+    .login-panel{
+      margin:0 26px 10px;
+      border-radius:28px;
+      padding:11px 16px 10px;
+      background:linear-gradient(180deg,#fdfdff 0%,#f8f9ff 100%);
+      border:1px solid rgba(218, 222, 240, .78);
+      box-shadow:0 8px 22px rgba(85, 98, 152, .045);
+    }
+    .row{
+      display:grid;
+      grid-template-columns:50px minmax(0,1fr) 62px;
+      gap:2px;
+      align-items:center;
+      margin:0;
+    }
+    .row + .row{
+      margin-top:12px;
+    }
+    .row label{
+      font-size:13px;
+      font-weight:900;
+      color:#1b2431;
+      letter-spacing:0;
+      white-space:nowrap;
+    }
+    .value{
+      height:40px;
+      border-radius:20px;
+      background:linear-gradient(180deg,#ffffff 0%,#fbfcff 100%);
+      border:1px solid rgba(224, 228, 240, .86);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 1px 5px rgba(91,105,156,.035);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:0 18px;
+      font-size:14px;
+      font-weight:900;
+      color:#000;
+      letter-spacing:0;
+      white-space:nowrap;
+      overflow:hidden;
+    }
+    #phoneView,
+    #codeView{
+      font-size:14px;
+      font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+      font-weight:900;
+      font-style:normal;
+      font-synthesis:none;
+      letter-spacing:.35px;
+    }
+    #phoneView.is-fetched{
+      font-weight:900 !important;
+      text-shadow:
+        .22px 0 0 currentColor,
+        -.22px 0 0 currentColor,
+        0 .22px 0 currentColor,
+        0 -.22px 0 currentColor;
+    }
+    .copy{
+      height:40px;
+      border:none;
+      border-radius:16px;
+      background:linear-gradient(180deg,#856cf7 0%,#5974ef 100%);
+      color:#fff;
+      font-size:13px;
+      font-weight:900;
+      cursor:pointer;
+      box-shadow:0 8px 14px rgba(103,115,243,.24);
+      letter-spacing:0;
+    }
+
+    .tip{
+      margin:10px 46px 12px;
+      padding:8px 14px;
+      border-radius:18px;
+      background:var(--orange-bg);
+      border:1px solid rgba(240, 214, 182, .72);
+      color:var(--orange-text);
+      text-align:center;
+      font-size:14px;
+      font-family:inherit;
+      font-weight:inherit;
+      line-height:1.4;
+      letter-spacing:0;
+      font-synthesis:none;
+    }
+
+    .help{
+      margin:0 16px 16px;
+      padding:14px 14px 12px;
+      border-radius:22px;
+      background:#f9fafe;
+      border:1px solid rgba(220, 225, 241, .76);
+      box-shadow:0 7px 20px rgba(85, 98, 152, .035);
+    }
+    .help-head{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin-bottom:10px;
+    }
+    .q{
+      width:28px;height:28px;border-radius:10px;background:linear-gradient(180deg,#8771f8,#6d61f0);color:#fff;font-size:var(--copy-size);font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 8px 14px rgba(120,110,240,.22)
+    }
+    .help h2{
+      margin:0;
+      font-size:16px;
+      line-height:1.22;
+      font-family:inherit;
+      font-weight:inherit;
+      color:#000;
+      letter-spacing:0;
+      font-synthesis:none;
+    }
+    .help ol{
+      list-style:none;
+      padding:0;
+      margin:8px 0 0;
+    }
+    .help li{
+      display:grid;
+      grid-template-columns:26px 1fr;
+      gap:6px;
+      align-items:flex-start;
+      margin:6px 0;
+    }
+    .step{
+      width:26px;height:26px;border-radius:50%;background:linear-gradient(180deg,#f1edff,#e7e2ff);color:#6c5ff0;display:flex;align-items:center;justify-content:center;font-size:var(--copy-size);font-weight:600;flex:none
+    }
+    .help p{
+      margin:0;
+      color:#4f5568;
+      font-size:var(--copy-size);
+      line-height:1.32;
+      letter-spacing:0;
+      font-family:inherit;
+      font-weight:inherit;
+      font-synthesis:none;
+    }
+
+    .hero h1,
+    .notice strong,
+    .value,
+    .tip,
+    .help h2,
+    .help p{
+      font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+      font-weight:900;
+      font-style:normal;
+      font-synthesis:none;
+      letter-spacing:.35px;
+      -webkit-font-smoothing:antialiased;
+      text-rendering:geometricPrecision;
+    }
+
+    .toast{
+      position:fixed;
+      left:50%;
+      top:50%;
+      transform:translate(-50%,-50%) translateY(10px);
+      background:rgba(18,24,38,.92);
+      color:#fff;
+      padding:10px 14px;
+      border-radius:12px;
+      font-size:var(--copy-size);
+      font-weight:700;
+      opacity:0;
+      pointer-events:none;
+      transition:.18s ease;
+      max-width:min(92vw,420px);
+      text-align:center;
+      z-index:99;
+      letter-spacing:0;
+    }
+    .toast.show{opacity:1;transform:translate(-50%,-50%) translateY(0)}
+
+    @media (max-width: 393px){
+      .stage{padding:0}
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <main class="phone" id="phoneShell">
+      <section class="card">
+        <section class="hero">
+          <div class="hero-top">
+            <div class="safe"><span class="safe-dot"></span><span>安全连接</span></div>
+            <div class="active-pill">已激活</div>
+          </div>
+          <h1>账号激活</h1>
+          <p>复制登录信息后到 APP 完成验证</p>
+          <div class="hero-art" aria-hidden="true"></div>
+        </section>
+
+        <div class="notice">
+          <div class="warn">!</div>
+          <strong id="queueNotice">请确认当前车位还在！号码前+1</strong>
+        </div>
+
+        <section class="login-panel" aria-label="登录信息">
+          <div class="row">
+            <label>登录号：</label>
+            <div class="value" id="phoneView">打开软件后再获取</div>
+            <button class="copy" type="button" data-get="account">获取</button>
+          </div>
+          <div class="row">
+            <label>验证码：</label>
+            <div class="value" id="codeView">获取后5分钟有效</div>
+          </div>
+        </section>
+
+        <div class="tip">请登录常用设备，避免退出更换设备</div>
+
+        <section class="help" aria-label="验证码帮助">
+          <div class="help-head">
+            <div class="q">?</div>
+            <h2>使用说明：</h2>
+          </div>
+          <ol>
+            <li><span class="step">1</span><p>号码具有时效性，未打开软件请勿获取</p></li>
+            <li><span class="step">2</span><p>打开APP后点击获取</p></li>
+            <li><span class="step">3</span><p>把获取的号码前+1完整输入到APP中</p></li>
+            <li><span class="step">4</span><p>点击获取验证码，会烦次页面等待验证码</p></li>
+            <li><span class="step">5</span><p>将验证码填入即可激活使用</p></li>
+          </ol>
+        </section>
+      </section>
+
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const phoneLibrary = [
+      { phone: '15992211114', code: '462657' },
+      { phone: '13877665544', code: '908214' },
+      { phone: '17766554433', code: '714380' },
+      { phone: '18600138000', code: '625901' }
+    ];
+    const queueNotice = '请确认当前车位还在！号码前+1';
+    const codeExpireDelayMs = 5 * 60 * 1000;
+    const codeRevealDelayMs = 45 * 1000;
+
+    const phoneView = document.getElementById('phoneView');
+    const codeView = document.getElementById('codeView');
+    const notice = document.getElementById('queueNotice');
+    const toast = document.getElementById('toast');
+    const stage = document.querySelector('.stage');
+    const phoneShell = document.getElementById('phoneShell');
+
+    let currentIndex = -1;
+    let countdownTimer = null;
+    let codeRevealTimer = null;
+    let codeExpireTimer = null;
+    let currentRequestId = 0;
+
+    function formatSvipPhone(phone) {
+      const value = String(phone || '').replace(/\D/g, '');
+      const withoutFirst = value.length > 0 ? value.slice(1) : value;
+      if (withoutFirst.length <= 8) return withoutFirst;
+      return `${withoutFirst.slice(0, 4)}${withoutFirst.slice(-4)}`;
+    }
+
+    function showToast(text) {
+      toast.textContent = text;
+      toast.classList.add('show');
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove('show'), 1300);
+    }
+
+    function formatCountdown(totalSeconds) {
+      const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+      const seconds = String(totalSeconds % 60).padStart(2, '0');
+      return `${minutes}:${seconds}`;
+    }
+
+    function clearCodeTimers() {
+      clearInterval(countdownTimer);
+      clearTimeout(codeRevealTimer);
+      clearTimeout(codeExpireTimer);
+      countdownTimer = null;
+      codeRevealTimer = null;
+      codeExpireTimer = null;
+    }
+
+    function startCodeWait(item) {
+      clearCodeTimers();
+
+      const requestId = ++currentRequestId;
+      let remaining = Math.floor(codeExpireDelayMs / 1000);
+      codeView.textContent = formatCountdown(remaining);
+
+      countdownTimer = setInterval(() => {
+        if (requestId !== currentRequestId) return;
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearCodeTimers();
+          codeView.textContent = '联系客服';
+          return;
+        }
+        codeView.textContent = formatCountdown(remaining);
+      }, 1000);
+
+      codeRevealTimer = setTimeout(() => {
+        if (requestId !== currentRequestId || !item.code) return;
+        clearCodeTimers();
+        codeView.textContent = item.code;
+        codeView.dataset.full = item.code;
+      }, codeRevealDelayMs);
+
+      codeExpireTimer = setTimeout(() => {
+        if (requestId !== currentRequestId) return;
+        clearCodeTimers();
+        codeView.textContent = '联系客服';
+      }, codeExpireDelayMs);
+    }
+
+    function renderAccount(index) {
+      const item = phoneLibrary[index % phoneLibrary.length];
+      phoneView.textContent = formatSvipPhone(item.phone);
+      phoneView.dataset.full = item.phone;
+      phoneView.classList.add('is-fetched');
+      codeView.dataset.full = '';
+      codeView.textContent = '获取后5分钟有效';
+      notice.textContent = queueNotice;
+      startCodeWait(item);
+    }
+
+    function getAccount() {
+      clearCodeTimers();
+      currentIndex = (currentIndex + 1) % phoneLibrary.length;
+      renderAccount(currentIndex);
+      showToast('已获取');
+    }
+
+    function fitPhone() {
+      const scale = Math.min(1, document.documentElement.clientWidth / 393);
+      stage.style.setProperty('--fit-scale', scale.toFixed(4));
+      phoneShell.style.minHeight = `${Math.ceil(window.innerHeight / scale)}px`;
+    }
+
+    document.querySelectorAll('[data-get]').forEach((button) => {
+      button.addEventListener('click', () => {
+        getAccount();
+      });
+    });
+
+    window.addEventListener('resize', fitPhone);
+    fitPhone();
+  </script>
+</body>
+</html>
