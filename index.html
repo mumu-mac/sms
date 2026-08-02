@@ -87,7 +87,36 @@
       content:"";position:absolute;left:4px;top:5px;width:6px;height:8px;border-right:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(40deg)
     }
     .active-pill{
-      padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.34);font-size:var(--copy-size);font-weight:600;line-height:1
+      min-width:72px;
+      padding:7px 12px;
+      border-radius:999px;
+      background:rgba(255,255,255,.14);
+      border:1px solid rgba(255,255,255,.34);
+      color:#fff;
+      font-family:inherit;
+      font-size:var(--copy-size);
+      font-weight:600;
+      line-height:1;
+      cursor:pointer;
+      appearance:none;
+      -webkit-appearance:none;
+      transition:background .18s ease,border-color .18s ease,opacity .18s ease;
+    }
+    .active-pill.is-inactive{
+      background:rgba(255,255,255,.10);
+      border-color:rgba(255,255,255,.28);
+    }
+    .active-pill.is-pending{
+      opacity:.78;
+      cursor:wait;
+    }
+    .active-pill.is-active{
+      background:rgba(255,255,255,.18);
+      border-color:rgba(255,255,255,.44);
+    }
+    .active-pill:focus-visible{
+      outline:2px solid rgba(255,255,255,.72);
+      outline-offset:3px;
     }
     .hero h1{
       margin:46px 0 10px;
@@ -343,7 +372,7 @@
         <section class="hero">
           <div class="hero-top">
             <div class="safe"><span class="safe-dot"></span><span>安全连接</span></div>
-            <div class="active-pill">已激活</div>
+            <button class="active-pill is-inactive" id="activationButton" type="button">未激活</button>
           </div>
           <h1>账号激活</h1>
           <p>仔细阅读使用说明，不懂找客服！</p>
@@ -390,16 +419,27 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
-    const phoneLibrary = [
-      { phone: '15992211114', code: '462657' },
-      { phone: '13877665544', code: '908214' },
-      { phone: '17766554433', code: '714380' },
-      { phone: '18600138000', code: '625901' }
-    ];
+    const EMQX_CONFIG = {
+      wsUrl: 'wss://e109e31e.ala.cn-hangzhou.emqxsl.cn:8084/mqtt',
+      username: 'web_client',
+      password: '73LUZbT7liQAs8cEYfngoxB2PSs74yNx',
+      activationParamNames: ['key', 'pwd', 'password', 'code'],
+      activationHours: 10,
+      activationCheckIntervalMs: 10 * 60 * 1000,
+      activationRequestTimeoutMs: 12000,
+      accountRequestTimeoutMs: 15000,
+      topicRoot: 'svip',
+      qos: 1
+    };
+
     const queueNotice = '登录号中 * 号代表1，输入时自行替换';
     const codeExpireDelayMs = 5 * 60 * 1000;
     const codeRevealDelayMs = 45 * 1000;
+    const activationDurationMs = EMQX_CONFIG.activationHours * 60 * 60 * 1000;
+    const activationPasswordStorageKey = 'mumu_svip_activation_password';
+    const activationSessionStorageKey = 'mumu_svip_activation_session';
 
     const phoneView = document.getElementById('phoneView');
     const codeView = document.getElementById('codeView');
@@ -407,12 +447,74 @@
     const toast = document.getElementById('toast');
     const stage = document.querySelector('.stage');
     const phoneShell = document.getElementById('phoneShell');
+    const activationButton = document.getElementById('activationButton');
 
-    let currentIndex = -1;
+    const clientId = getClientId();
+    const activationPassword = getActivationPassword();
+    const mqttTopics = createMqttTopics(clientId);
+
+    let mqttClient = null;
+    let mqttConnectPromise = null;
+    let isActivated = false;
+    let activationToken = '';
+    let activationExpiresAt = 0;
+    let activationExpireTimer = null;
+    let activationCheckIntervalTimer = null;
+    let pendingAuthRequestId = '';
+    let pendingAuthCheckRequestId = '';
+    let pendingAccountRequestId = '';
+    let authTimeoutTimer = null;
+    let authCheckTimeoutTimer = null;
+    let accountTimeoutTimer = null;
+    let authCheckResolve = null;
+    let authCheckReject = null;
+    let authCheckPromise = null;
+    let pendingAuthCheckSilent = false;
     let countdownTimer = null;
     let codeRevealTimer = null;
     let codeExpireTimer = null;
     let currentRequestId = 0;
+
+    function getClientId() {
+      const storageKey = 'mumu_svip_client_id';
+      const saved = localStorage.getItem(storageKey);
+      if (saved && /^[a-zA-Z0-9_-]{8,80}$/.test(saved)) return saved;
+
+      const next = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(16).slice(2)}`).replace(/-/g, '');
+      localStorage.setItem(storageKey, next);
+      return next;
+    }
+
+    function getActivationPassword() {
+      const params = new URLSearchParams(location.search);
+      for (const name of EMQX_CONFIG.activationParamNames) {
+        const value = params.get(name);
+        if (value && value.trim()) {
+          const password = value.trim();
+          localStorage.setItem(activationPasswordStorageKey, password);
+          return password;
+        }
+      }
+      return localStorage.getItem(activationPasswordStorageKey) || '';
+    }
+
+    function createRequestId(prefix) {
+      return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    }
+
+    function createMqttTopics(id) {
+      const root = EMQX_CONFIG.topicRoot.replace(/^\/+|\/+$/g, '');
+      return {
+        authRequest: `${root}/auth/request/${id}`,
+        authResult: `${root}/auth/result/${id}`,
+        authCheckRequest: `${root}/auth/check/request/${id}`,
+        authCheckResult: `${root}/auth/check/result/${id}`,
+        accountRequest: `${root}/account/request/${id}`,
+        accountResult: `${root}/account/result/${id}`,
+        codeResult: `${root}/code/result/${id}`,
+        status: `${root}/status/${id}`
+      };
+    }
 
     function formatSvipPhone(phone) {
       const value = String(phone || '').replace(/\D/g, '');
@@ -447,7 +549,333 @@
       codeExpireTimer = null;
     }
 
-    function startCodeWait(item) {
+    function clearAccountTimer() {
+      clearTimeout(accountTimeoutTimer);
+      accountTimeoutTimer = null;
+    }
+
+    function setActivationState(state, text) {
+      activationButton.textContent = text;
+      activationButton.classList.toggle('is-inactive', state === 'inactive');
+      activationButton.classList.toggle('is-pending', state === 'pending');
+      activationButton.classList.toggle('is-active', state === 'active');
+      activationButton.disabled = state === 'pending';
+    }
+
+    function hasEmqxConfig() {
+      return Boolean(
+        EMQX_CONFIG.wsUrl &&
+        !EMQX_CONFIG.wsUrl.includes('你的EMQX') &&
+        EMQX_CONFIG.username &&
+        EMQX_CONFIG.password
+      );
+    }
+
+    function clearActivationSession() {
+      clearTimeout(activationExpireTimer);
+      clearInterval(activationCheckIntervalTimer);
+      activationExpireTimer = null;
+      activationCheckIntervalTimer = null;
+      activationToken = '';
+      activationExpiresAt = 0;
+      localStorage.removeItem(activationSessionStorageKey);
+    }
+
+    function deactivateService(message) {
+      isActivated = false;
+      clearActivationSession();
+      clearCodeTimers();
+      clearAccountTimer();
+      pendingAccountRequestId = '';
+      phoneView.classList.remove('is-fetched');
+      phoneView.dataset.full = '';
+      codeView.dataset.full = '';
+      phoneView.textContent = '打开软件后再获取';
+      codeView.textContent = '获取后5分钟有效';
+      notice.textContent = queueNotice;
+      setActivationState('inactive', '未激活');
+      if (message) showToast(message);
+    }
+
+    function scheduleActivationExpire() {
+      clearTimeout(activationExpireTimer);
+      const remaining = activationExpiresAt - Date.now();
+      if (remaining <= 0) {
+        deactivateService('授权已过期');
+        return;
+      }
+
+      activationExpireTimer = setTimeout(() => {
+        deactivateService('授权已过期');
+      }, remaining);
+    }
+
+    function startActivationMonitor() {
+      clearInterval(activationCheckIntervalTimer);
+      if (!isActivated) return;
+
+      activationCheckIntervalTimer = setInterval(() => {
+        if (!isActivated || document.visibilityState !== 'visible') return;
+        checkActivationWithServer({ silent: true, reason: 'timer' }).catch((error) => {
+          console.error(error);
+        });
+      }, EMQX_CONFIG.activationCheckIntervalMs);
+    }
+
+    function saveActivationSession() {
+      localStorage.setItem(activationSessionStorageKey, JSON.stringify({
+        clientId,
+        token: activationToken,
+        expiresAt: activationExpiresAt
+      }));
+    }
+
+    function restoreActivationSession() {
+      try {
+        const session = JSON.parse(localStorage.getItem(activationSessionStorageKey) || 'null');
+        if (!session || session.clientId !== clientId || !session.token || !session.expiresAt || session.expiresAt <= Date.now()) {
+          deactivateService();
+          return;
+        }
+
+        isActivated = true;
+        activationToken = session.token || '';
+        activationExpiresAt = session.expiresAt;
+        setActivationState('active', '已激活');
+        scheduleActivationExpire();
+        startActivationMonitor();
+        checkActivationWithServer({ silent: true, reason: 'restore' }).catch((error) => {
+          console.error(error);
+        });
+      } catch (error) {
+        deactivateService();
+      }
+    }
+
+    function isActivationValid() {
+      if (!isActivated) return false;
+      if (!activationExpiresAt || activationExpiresAt <= Date.now()) {
+        deactivateService('授权已过期');
+        return false;
+      }
+      return true;
+    }
+
+    function resolveActivationExpiresAt(payload) {
+      const serverExpiresAt = payload.expiresAt || payload.expireAt || payload.expiredAt;
+      const parsedExpiresAt = typeof serverExpiresAt === 'number' ? serverExpiresAt : Date.parse(serverExpiresAt);
+      if (Number.isFinite(parsedExpiresAt) && parsedExpiresAt > Date.now()) {
+        return parsedExpiresAt;
+      }
+
+      const ttlMs = Number(payload.ttlMs || payload.expiresInMs);
+      if (Number.isFinite(ttlMs) && ttlMs > 0) {
+        return Date.now() + ttlMs;
+      }
+
+      return 0;
+    }
+
+    function parseMqttPayload(message) {
+      const text = typeof message === 'string' ? message : new TextDecoder().decode(message);
+      try {
+        return JSON.parse(text);
+      } catch (error) {
+        return { message: text };
+      }
+    }
+
+    function subscribeMqttTopics() {
+      [
+        mqttTopics.authResult,
+        mqttTopics.authCheckResult,
+        mqttTopics.accountResult,
+        mqttTopics.codeResult,
+        mqttTopics.status
+      ].forEach((topic) => {
+        mqttClient.subscribe(topic, { qos: EMQX_CONFIG.qos }, (error) => {
+          if (error) console.error(`订阅失败：${topic}`, error);
+        });
+      });
+    }
+
+    function ensureMqttConnected() {
+      if (!hasEmqxConfig()) {
+        return Promise.reject(new Error('请先配置 EMQX 连接信息'));
+      }
+
+      if (mqttClient && mqttClient.connected) return Promise.resolve(mqttClient);
+      if (mqttConnectPromise) return mqttConnectPromise;
+      if (!window.mqtt) return Promise.reject(new Error('MQTT 组件加载失败'));
+
+      mqttConnectPromise = new Promise((resolve, reject) => {
+        const connectOptions = {
+          clientId: `mumu_svip_${clientId}`,
+          username: EMQX_CONFIG.username,
+          password: EMQX_CONFIG.password,
+          clean: true,
+          connectTimeout: 8000,
+          reconnectPeriod: 3000
+        };
+
+        mqttClient = mqtt.connect(EMQX_CONFIG.wsUrl, connectOptions);
+
+        const timeout = setTimeout(() => {
+          reject(new Error('EMQX 连接超时'));
+        }, connectOptions.connectTimeout + 1200);
+
+        mqttClient.on('connect', () => {
+          clearTimeout(timeout);
+          subscribeMqttTopics();
+          resolve(mqttClient);
+        });
+
+        mqttClient.on('message', handleMqttMessage);
+        mqttClient.on('error', (error) => {
+          console.error('EMQX 连接错误', error);
+        });
+      }).finally(() => {
+        mqttConnectPromise = null;
+      });
+
+      return mqttConnectPromise;
+    }
+
+    function publishMqtt(topic, payload) {
+      return ensureMqttConnected().then((client) => new Promise((resolve, reject) => {
+        client.publish(topic, JSON.stringify(payload), { qos: EMQX_CONFIG.qos, retain: false }, (error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      }));
+    }
+
+    function applyActivationGranted(payload, options = {}) {
+      const announce = options.announce !== false;
+      const message = payload.message || options.message || '';
+      const nextToken = payload.token || payload.activationToken || '';
+      const nextExpiresAt = resolveActivationExpiresAt(payload);
+      if (!nextToken || !Number.isFinite(nextExpiresAt) || nextExpiresAt <= Date.now()) {
+        return false;
+      }
+      isActivated = true;
+      activationToken = nextToken;
+      activationExpiresAt = nextExpiresAt;
+      saveActivationSession();
+      scheduleActivationExpire();
+      startActivationMonitor();
+      setActivationState('active', '已激活');
+      if (announce && message) showToast(message);
+      return true;
+    }
+
+    function clearPendingAuthCheck() {
+      clearTimeout(authCheckTimeoutTimer);
+      authCheckTimeoutTimer = null;
+      authCheckResolve = null;
+      authCheckReject = null;
+      authCheckPromise = null;
+      pendingAuthCheckSilent = false;
+    }
+
+    function checkActivationWithServer(options = {}) {
+      const silent = options.silent === true;
+      if (!activationPassword) {
+        deactivateService();
+        return Promise.reject(new Error('缺少授权码'));
+      }
+
+      if (!isActivated) {
+        return Promise.reject(new Error('请点击右上角激活服务'));
+      }
+
+      if (authCheckPromise) return authCheckPromise;
+
+      clearPendingAuthCheck();
+      pendingAuthCheckRequestId = createRequestId('auth_check');
+      pendingAuthCheckSilent = silent;
+      if (!silent) setActivationState('pending', '验证中');
+
+      authCheckPromise = new Promise((resolve, reject) => {
+        authCheckResolve = resolve;
+        authCheckReject = reject;
+
+        publishMqtt(mqttTopics.authCheckRequest, {
+          type: 'auth_check',
+          clientId,
+          requestId: pendingAuthCheckRequestId,
+          password: activationPassword,
+          activationToken,
+          activationExpiresAt,
+          reason: options.reason || 'manual',
+          ts: Date.now()
+        }).catch((error) => {
+          const rejectCheck = authCheckReject;
+          clearPendingAuthCheck();
+          if (!silent && isActivationValid()) setActivationState('active', '已激活');
+          rejectCheck?.(error);
+        });
+
+        authCheckTimeoutTimer = setTimeout(() => {
+          const rejectCheck = authCheckReject;
+          clearPendingAuthCheck();
+          if (!silent && isActivationValid()) setActivationState('active', '已激活');
+          rejectCheck?.(new Error('授权验证超时'));
+        }, EMQX_CONFIG.activationRequestTimeoutMs);
+      });
+
+      return authCheckPromise;
+    }
+
+    function activateService() {
+      if (isActivated) {
+        showToast('服务已激活');
+        return;
+      }
+
+      if (!activationPassword) {
+        showToast('缺少授权码');
+        return;
+      }
+
+      const requestId = createRequestId('auth');
+      pendingAuthRequestId = requestId;
+      setActivationState('pending', '激活中');
+      clearTimeout(authTimeoutTimer);
+
+      const payload = {
+        type: 'activate',
+        clientId,
+        requestId,
+        password: activationPassword,
+        durationHours: EMQX_CONFIG.activationHours,
+        page: location.href,
+        userAgent: navigator.userAgent,
+        ts: Date.now()
+      };
+
+      publishMqtt(mqttTopics.authRequest, payload)
+        .then(() => {
+          showToast('已提交激活');
+          authTimeoutTimer = setTimeout(() => {
+            if (isActivated || pendingAuthRequestId !== requestId) return;
+            pendingAuthRequestId = '';
+            setActivationState('inactive', '未激活');
+            showToast('激活超时，请重试');
+            authTimeoutTimer = null;
+          }, EMQX_CONFIG.activationRequestTimeoutMs);
+        })
+        .catch((error) => {
+          console.error(error);
+          pendingAuthRequestId = '';
+          clearTimeout(authTimeoutTimer);
+          authTimeoutTimer = null;
+          setActivationState('inactive', '未激活');
+          showToast(error.message || '激活失败');
+        });
+    }
+
+    function startCodeWait(initialCode) {
       clearCodeTimers();
 
       const requestId = ++currentRequestId;
@@ -465,12 +893,12 @@
         codeView.textContent = formatWaitingCountdown(remaining);
       }, 1000);
 
-      codeRevealTimer = setTimeout(() => {
-        if (requestId !== currentRequestId || !item.code) return;
-        clearCodeTimers();
-        codeView.textContent = item.code;
-        codeView.dataset.full = item.code;
-      }, codeRevealDelayMs);
+      if (initialCode) {
+        codeRevealTimer = setTimeout(() => {
+          if (requestId !== currentRequestId) return;
+          showCode(initialCode);
+        }, codeRevealDelayMs);
+      }
 
       codeExpireTimer = setTimeout(() => {
         if (requestId !== currentRequestId) return;
@@ -479,22 +907,197 @@
       }, codeExpireDelayMs);
     }
 
-    function renderAccount(index) {
-      const item = phoneLibrary[index % phoneLibrary.length];
+    function showCode(code) {
+      clearCodeTimers();
+      codeView.textContent = code;
+      codeView.dataset.full = code;
+    }
+
+    function renderAccount(item) {
       phoneView.textContent = formatSvipPhone(item.phone);
       phoneView.dataset.full = item.phone;
       phoneView.classList.add('is-fetched');
       codeView.dataset.full = '';
       codeView.textContent = '获取后5分钟有效';
       notice.textContent = queueNotice;
-      startCodeWait(item);
+      startCodeWait(item.code);
     }
 
-    function getAccount() {
+    async function getAccount() {
+      if (!isActivationValid()) {
+        showToast('请点击右上角激活服务');
+        return;
+      }
+
+      try {
+        await checkActivationWithServer();
+      } catch (error) {
+        console.error(error);
+        showToast(error.message || '授权验证失败');
+        return;
+      }
+
       clearCodeTimers();
-      currentIndex = (currentIndex + 1) % phoneLibrary.length;
-      renderAccount(currentIndex);
-      showToast('已获取');
+      clearAccountTimer();
+      pendingAccountRequestId = createRequestId('account');
+      phoneView.classList.remove('is-fetched');
+      phoneView.dataset.full = '';
+      codeView.dataset.full = '';
+      phoneView.textContent = '分配中';
+      codeView.textContent = '等待验证码';
+      notice.textContent = '正在为你分配登录号，请稍等';
+
+      publishMqtt(mqttTopics.accountRequest, {
+        type: 'account_request',
+        clientId,
+        requestId: pendingAccountRequestId,
+        activationToken,
+        activationExpiresAt,
+        ts: Date.now()
+      }).then(() => {
+        accountTimeoutTimer = setTimeout(() => {
+          if (pendingAccountRequestId !== '') {
+            pendingAccountRequestId = '';
+            phoneView.classList.remove('is-fetched');
+            phoneView.dataset.full = '';
+            codeView.dataset.full = '';
+            phoneView.textContent = '打开软件后再获取';
+            codeView.textContent = '获取后5分钟有效';
+            notice.textContent = queueNotice;
+            showToast('获取超时，请重试');
+          }
+        }, EMQX_CONFIG.accountRequestTimeoutMs);
+      }).catch((error) => {
+        console.error(error);
+        clearAccountTimer();
+        pendingAccountRequestId = '';
+        phoneView.classList.remove('is-fetched');
+        phoneView.dataset.full = '';
+        codeView.dataset.full = '';
+        phoneView.textContent = '打开软件后再获取';
+        codeView.textContent = '获取后5分钟有效';
+        notice.textContent = queueNotice;
+        showToast(error.message || '获取失败');
+      });
+    }
+
+    function handleActivationResult(payload) {
+      if (payload.requestId && payload.requestId !== pendingAuthRequestId) return;
+      pendingAuthRequestId = '';
+      clearTimeout(authTimeoutTimer);
+      authTimeoutTimer = null;
+
+      const allowed = payload.ok === true || payload.success === true || payload.allowed === true || payload.status === 'ok';
+      const granted = allowed && applyActivationGranted(payload, { message: '激活成功' });
+      if (!granted) {
+        deactivateService(allowed ? '激活信息不完整' : (payload.message || '激活失败'));
+        return;
+      }
+    }
+
+    function handleAuthCheckResult(payload) {
+      if (payload.requestId && payload.requestId !== pendingAuthCheckRequestId) return;
+      pendingAuthCheckRequestId = '';
+      const resolveCheck = authCheckResolve;
+      const rejectCheck = authCheckReject;
+      const silent = pendingAuthCheckSilent;
+      clearPendingAuthCheck();
+
+      const allowed = payload.ok === true || payload.success === true || payload.allowed === true || payload.status === 'ok';
+      const granted = allowed && applyActivationGranted(payload, {
+        announce: !silent,
+        message: payload.message || '授权有效'
+      });
+      if (!granted) {
+        deactivateService(payload.message || '授权已过期');
+        rejectCheck?.(new Error(payload.message || '授权已过期'));
+        return;
+      }
+      resolveCheck?.(payload);
+    }
+
+    function handleAccountResult(payload) {
+      if (payload.requestId && payload.requestId !== pendingAccountRequestId) return;
+      clearAccountTimer();
+      const ok = payload.ok !== false && payload.success !== false && payload.status !== 'error';
+      if (!ok) {
+        const reason = payload.reason || '';
+        const message = payload.message || '';
+        const noPhone = reason === 'no_phone' || message.includes('无号码') || message.includes('号码库暂无可用号码');
+        pendingAccountRequestId = '';
+        clearCodeTimers();
+        phoneView.classList.remove('is-fetched');
+        phoneView.dataset.full = '';
+        codeView.dataset.full = '';
+        if (noPhone) {
+          phoneView.textContent = '无号码';
+          codeView.textContent = '联系客服';
+          notice.textContent = '号码库暂无可用号码，请稍后再试';
+          showToast('无号码');
+          return;
+        }
+
+        if (reason === 'expired' || reason === 'revoked' || reason === 'not_activated' || reason === 'token_mismatch' || reason === 'client_mismatch') {
+          phoneView.textContent = '未激活';
+          codeView.textContent = '请点击右上角激活服务';
+          notice.textContent = '请先完成激活审核';
+        } else {
+          phoneView.textContent = '打开软件后再获取';
+          codeView.textContent = '获取后5分钟有效';
+          notice.textContent = queueNotice;
+        }
+        showToast(message || '分配失败');
+        return;
+      }
+
+      const phone = payload.phone || payload.account || payload.login || payload.loginNo;
+      const code = payload.code || payload.verifyCode || payload.smsCode;
+      if (!phone) {
+        pendingAccountRequestId = '';
+        clearCodeTimers();
+        phoneView.classList.remove('is-fetched');
+        phoneView.dataset.full = '';
+        codeView.dataset.full = '';
+        showToast(payload.message || '未收到登录号');
+        return;
+      }
+
+      renderAccount({ phone, code });
+    }
+
+    function handleCodeResult(payload) {
+      if (payload.requestId && payload.requestId !== pendingAccountRequestId) return;
+      clearAccountTimer();
+      const code = payload.code || payload.verifyCode || payload.smsCode;
+      if (!code) {
+        showToast(payload.message || '未收到验证码');
+        return;
+      }
+      showCode(code);
+      pendingAccountRequestId = '';
+    }
+
+    function handleMqttMessage(topic, message) {
+      const payload = parseMqttPayload(message);
+      if (topic === mqttTopics.authResult) {
+        handleActivationResult(payload);
+        return;
+      }
+      if (topic === mqttTopics.authCheckResult) {
+        handleAuthCheckResult(payload);
+        return;
+      }
+      if (topic === mqttTopics.accountResult) {
+        handleAccountResult(payload);
+        return;
+      }
+      if (topic === mqttTopics.codeResult) {
+        handleCodeResult(payload);
+        return;
+      }
+      if (topic === mqttTopics.status && payload.message) {
+        showToast(payload.message);
+      }
     }
 
     function fitPhone() {
@@ -508,8 +1111,10 @@
         getAccount();
       });
     });
+    activationButton.addEventListener('click', activateService);
 
     window.addEventListener('resize', fitPhone);
+    restoreActivationSession();
     fitPhone();
   </script>
 </body>
