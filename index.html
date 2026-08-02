@@ -103,8 +103,9 @@
       transition:background .18s ease,border-color .18s ease,opacity .18s ease;
     }
     .active-pill.is-inactive{
-      background:rgba(255,255,255,.10);
-      border-color:rgba(255,255,255,.28);
+      background:linear-gradient(180deg,#f66b6b 0%,#d93c3c 100%);
+      border-color:rgba(255,255,255,.18);
+      box-shadow:0 10px 18px rgba(200, 53, 53, .18);
     }
     .active-pill.is-pending{
       opacity:.78;
@@ -360,6 +361,95 @@
     }
     .toast.show{opacity:1;transform:translate(-50%,-50%) translateY(0)}
 
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      background:rgba(18, 24, 40, .55);
+      backdrop-filter:blur(4px);
+      z-index:50;
+    }
+    .modal-backdrop.is-open{display:flex}
+    .modal{
+      width:min(340px, 100%);
+      border-radius:22px;
+      background:#fff;
+      box-shadow:0 24px 50px rgba(18, 24, 40, .22);
+      overflow:hidden;
+      border:1px solid rgba(132, 143, 189, .16);
+    }
+    .modal-head{
+      padding:16px 18px 10px;
+      border-bottom:1px solid var(--line);
+    }
+    .modal-head h2{
+      margin:0;
+      font-size:18px;
+      line-height:1.2;
+      color:var(--text);
+    }
+    .modal-head p{
+      margin:6px 0 0;
+      font-size:12px;
+      line-height:1.4;
+      color:var(--muted);
+    }
+    .modal-body{
+      padding:14px 18px 18px;
+      display:grid;
+      gap:12px;
+    }
+    .modal-body label{
+      display:grid;
+      gap:8px;
+      font-size:13px;
+      font-weight:700;
+      color:var(--text);
+    }
+    .modal-input{
+      height:42px;
+      border-radius:14px;
+      border:1px solid #d6dceb;
+      padding:0 12px;
+      font:inherit;
+      color:var(--text);
+      background:#fff;
+      outline:none;
+    }
+    .modal-input:focus{
+      border-color:var(--purple-deep);
+      box-shadow:0 0 0 3px rgba(91, 103, 239, .14);
+    }
+    .modal-actions{
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      padding-top:2px;
+    }
+    .modal-btn{
+      min-width:78px;
+      height:38px;
+      border-radius:12px;
+      border:1px solid transparent;
+      font:inherit;
+      font-size:13px;
+      font-weight:700;
+      cursor:pointer;
+      background:#f4f6fb;
+      color:var(--text);
+    }
+    .modal-btn.primary{
+      background:var(--purple-deep);
+      color:#fff;
+    }
+    .modal-btn.secondary{
+      background:#edf1f8;
+      color:#44506a;
+    }
+
     @media (max-width: 393px){
       .stage{padding:0}
     }
@@ -417,6 +507,25 @@
     </main>
   </div>
 
+  <div class="modal-backdrop" id="activationModal" aria-hidden="true">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="activationModalTitle">
+      <div class="modal-head">
+        <h2 id="activationModalTitle">输入激活码</h2>
+        <p>点击确认后会向服务器发送激活请求。</p>
+      </div>
+      <form class="modal-body" id="activationForm">
+        <label for="activationInput">
+          激活码
+          <input class="modal-input" id="activationInput" name="activationCode" type="text" autocomplete="off" placeholder="请输入激活码">
+        </label>
+        <div class="modal-actions">
+          <button class="modal-btn secondary" id="activationCancel" type="button">取消</button>
+          <button class="modal-btn primary" type="submit">确认激活</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
@@ -445,12 +554,16 @@
     const codeView = document.getElementById('codeView');
     const notice = document.getElementById('queueNotice');
     const toast = document.getElementById('toast');
+    const activationModal = document.getElementById('activationModal');
+    const activationForm = document.getElementById('activationForm');
+    const activationInput = document.getElementById('activationInput');
+    const activationCancel = document.getElementById('activationCancel');
     const stage = document.querySelector('.stage');
     const phoneShell = document.getElementById('phoneShell');
     const activationButton = document.getElementById('activationButton');
 
     const clientId = getClientId();
-    const activationPassword = getActivationPassword();
+    let activationPassword = getActivationPassword();
     const mqttTopics = createMqttTopics(clientId);
 
     let mqttClient = null;
@@ -496,6 +609,32 @@
         }
       }
       return localStorage.getItem(activationPasswordStorageKey) || '';
+    }
+
+    function setActivationPassword(value) {
+      activationPassword = String(value || '').trim();
+      if (activationPassword) {
+        localStorage.setItem(activationPasswordStorageKey, activationPassword);
+      } else {
+        localStorage.removeItem(activationPasswordStorageKey);
+      }
+    }
+
+    function openActivationModal() {
+      if (isActivated) {
+        showToast('服务已激活');
+        return;
+      }
+
+      activationInput.value = activationPassword || '';
+      activationModal.classList.add('is-open');
+      activationModal.setAttribute('aria-hidden', 'false');
+      setTimeout(() => activationInput.focus(), 0);
+    }
+
+    function closeActivationModal() {
+      activationModal.classList.remove('is-open');
+      activationModal.setAttribute('aria-hidden', 'true');
     }
 
     function createRequestId(prefix) {
@@ -834,7 +973,7 @@
       }
 
       if (!activationPassword) {
-        showToast('缺少授权码');
+        openActivationModal();
         return;
       }
 
@@ -1106,12 +1245,42 @@
       phoneShell.style.minHeight = `${Math.ceil(window.innerHeight / scale)}px`;
     }
 
+    activationButton.addEventListener('click', () => {
+      if (isActivated) {
+        showToast('服务已激活');
+        return;
+      }
+      openActivationModal();
+    });
+
+    activationForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const value = activationInput.value.trim();
+      if (!value) {
+        showToast('请先输入激活码');
+        activationInput.focus();
+        return;
+      }
+      setActivationPassword(value);
+      closeActivationModal();
+      activateService();
+    });
+
+    activationCancel.addEventListener('click', closeActivationModal);
+    activationModal.addEventListener('click', (event) => {
+      if (event.target === activationModal) closeActivationModal();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && activationModal.classList.contains('is-open')) {
+        closeActivationModal();
+      }
+    });
+
     document.querySelectorAll('[data-get]').forEach((button) => {
       button.addEventListener('click', () => {
         getAccount();
       });
     });
-    activationButton.addEventListener('click', activateService);
 
     window.addEventListener('resize', fitPhone);
     restoreActivationSession();
