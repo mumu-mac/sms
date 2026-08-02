@@ -59,8 +59,8 @@
 
     .hero{
       position:relative;
-      padding:16px 20px 14px;
-      min-height:168px;
+      padding:18px 20px 16px;
+      min-height:148px;
       color:#fff;
       background:
         radial-gradient(105% 62% at 68% 116%, rgba(179,210,255,.48) 0 45%, rgba(179,210,255,0) 46%),
@@ -120,7 +120,7 @@
       outline-offset:3px;
     }
     .hero h1{
-      margin:46px 0 10px;
+      margin:30px 0 10px;
       padding-left:26px;
       font-size:26px;
       line-height:1;
@@ -179,6 +179,29 @@
       letter-spacing:0;
       white-space:nowrap;
       font-synthesis:none;
+    }
+    .notice strong.card-key-notice{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:2px;
+      white-space:normal;
+      text-align:center;
+    }
+    .notice.is-card-used{
+      background:linear-gradient(180deg,#fff6f6,#fff0f0);
+      border-color:rgba(217, 45, 32, .38);
+    }
+    .notice.is-card-used .warn{
+      background:#f97066;
+      color:#fff;
+    }
+    .card-used-warning{
+      color:#d92d20;
+      font-size:13px;
+      line-height:1.25;
+      font-weight:900;
     }
 
     .login-panel{
@@ -460,18 +483,14 @@
     <main class="phone" id="phoneShell">
       <section class="card">
         <section class="hero">
-          <div class="hero-top">
-            <div class="safe"><span class="safe-dot"></span><span>安全连接</span></div>
-            <button class="active-pill is-inactive" id="activationButton" type="button">未激活</button>
-          </div>
-          <h1>账号激活</h1>
+          <h1>自助系统</h1>
           <p>仔细阅读使用说明，不懂找客服！</p>
           <div class="hero-art" aria-hidden="true"></div>
         </section>
 
         <div class="notice">
           <div class="warn">!</div>
-          <strong id="queueNotice">登录号中 * 号代表1，输入时自行替换</strong>
+          <strong id="queueNotice" class="card-key-notice">当前卡密：读取中</strong>
         </div>
 
         <section class="login-panel" aria-label="登录信息">
@@ -486,7 +505,7 @@
           </div>
         </section>
 
-        <div class="tip">请登录常用设备，避免退出更换设备</div>
+        <div class="tip">号码具有时效性，未打开软件请勿获取</div>
 
         <section class="help" aria-label="验证码帮助">
           <div class="help-head">
@@ -494,12 +513,10 @@
             <h2>使用说明：</h2>
           </div>
           <ol>
-            <li><span class="step">1</span><p>号码具有时效性，未打开软件请勿获取</p></li>
-            <li><span class="step">2</span><p>登录号开头*号代表1，输入请自行替换</p></li>
-            <li><span class="step">3</span><p>打开电脑端软件后点击获取</p></li>
-            <li><span class="step">4</span><p>获取验证码，返回本页等待验证码</p></li>
-            <li><span class="step">5</span><p>将验证码输入客户端软件即可使用</p></li>
-            <li><span class="step">6</span><p>有问题找客服！</p></li>
+            <li><span class="step">1</span><p>打开电脑端软件后点击获取</p></li>
+            <li><span class="step">2</span><p>获取验证码，返回本页等待验证码</p></li>
+            <li><span class="step">3</span><p>将验证码输入客户端软件即可使用</p></li>
+            <li><span class="step">4</span><p>有问题找客服！</p></li>
           </ol>
         </section>
       </section>
@@ -534,7 +551,7 @@
       wsUrl: 'wss://e109e31e.ala.cn-hangzhou.emqxsl.cn:8084/mqtt',
       username: 'web_client',
       password: '73LUZbT7liQAs8cEYfngoxB2PSs74yNx',
-      activationParamNames: ['key', 'pwd', 'password', 'code'],
+      activationParamNames: ['cardKey', 'key', 'pwd', 'password', 'code'],
       activationHours: 10,
       activationCheckIntervalMs: 10 * 60 * 1000,
       activationRequestTimeoutMs: 12000,
@@ -543,16 +560,19 @@
       qos: 1
     };
 
-    const queueNotice = '登录号中 * 号代表1，输入时自行替换';
+    const missingCardKeyText = '未检测到卡密';
+    const cardUsedMessage = '卡密已使用，找客服';
     const codeExpireDelayMs = 5 * 60 * 1000;
     const codeRevealDelayMs = 45 * 1000;
     const activationDurationMs = EMQX_CONFIG.activationHours * 60 * 60 * 1000;
     const activationPasswordStorageKey = 'mumu_svip_activation_password';
     const activationSessionStorageKey = 'mumu_svip_activation_session';
+    const usedCardStorageKey = 'mumu_svip_used_card_keys';
 
     const phoneView = document.getElementById('phoneView');
     const codeView = document.getElementById('codeView');
     const notice = document.getElementById('queueNotice');
+    const noticeBox = document.querySelector('.notice');
     const toast = document.getElementById('toast');
     const activationModal = document.getElementById('activationModal');
     const activationForm = document.getElementById('activationForm');
@@ -563,6 +583,7 @@
     const activationButton = document.getElementById('activationButton');
 
     const clientId = getClientId();
+    let activationPasswordFromUrl = false;
     let activationPassword = getActivationPassword();
     const mqttTopics = createMqttTopics(clientId);
 
@@ -604,11 +625,21 @@
         const value = params.get(name);
         if (value && value.trim()) {
           const password = value.trim();
+          activationPasswordFromUrl = true;
           localStorage.setItem(activationPasswordStorageKey, password);
+          cleanActivationParamsFromUrl(params);
           return password;
         }
       }
       return localStorage.getItem(activationPasswordStorageKey) || '';
+    }
+
+    function cleanActivationParamsFromUrl(params) {
+      const nextParams = new URLSearchParams(params);
+      EMQX_CONFIG.activationParamNames.forEach((name) => nextParams.delete(name));
+      const query = nextParams.toString();
+      const nextUrl = `${location.pathname}${query ? `?${query}` : ''}${location.hash}`;
+      history.replaceState(null, '', nextUrl);
     }
 
     function setActivationPassword(value) {
@@ -656,10 +687,7 @@
     }
 
     function formatSvipPhone(phone) {
-      const value = String(phone || '').replace(/\D/g, '');
-      const withoutFirst = value.length > 0 ? value.slice(1) : value;
-      if (withoutFirst.length <= 8) return withoutFirst;
-      return `${withoutFirst.slice(0, 4)}${withoutFirst.slice(-4)}`;
+      return String(phone || '').trim().replace(/^\*/, '1');
     }
 
     function showToast(text) {
@@ -667,6 +695,47 @@
       toast.classList.add('show');
       clearTimeout(showToast.timer);
       showToast.timer = setTimeout(() => toast.classList.remove('show'), 1300);
+    }
+
+    function getUsedCardKeys() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(usedCardStorageKey) || '{}');
+        return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function isCurrentCardUsed() {
+      return Boolean(activationPassword && getUsedCardKeys()[activationPassword]);
+    }
+
+    function setNoticeText(text, options = {}) {
+      noticeBox.classList.toggle('is-card-used', options.used === true);
+      notice.textContent = text;
+    }
+
+    function renderCardKeyNotice(forceUsed = false) {
+      const cardKey = activationPassword || missingCardKeyText;
+      const used = forceUsed || isCurrentCardUsed();
+      noticeBox.classList.toggle('is-card-used', used);
+      notice.textContent = `当前卡密：${cardKey}`;
+
+      if (used) {
+        const warning = document.createElement('span');
+        warning.className = 'card-used-warning';
+        warning.textContent = cardUsedMessage;
+        notice.appendChild(warning);
+      }
+    }
+
+    function markCurrentCardUsed() {
+      if (activationPassword) {
+        const usedCards = getUsedCardKeys();
+        usedCards[activationPassword] = Date.now();
+        localStorage.setItem(usedCardStorageKey, JSON.stringify(usedCards));
+      }
+      renderCardKeyNotice(true);
     }
 
     function formatCountdown(totalSeconds) {
@@ -694,6 +763,7 @@
     }
 
     function setActivationState(state, text) {
+      if (!activationButton) return;
       activationButton.textContent = text;
       activationButton.classList.toggle('is-inactive', state === 'inactive');
       activationButton.classList.toggle('is-pending', state === 'pending');
@@ -731,7 +801,7 @@
       codeView.dataset.full = '';
       phoneView.textContent = '打开软件后再获取';
       codeView.textContent = '获取后5分钟有效';
-      notice.textContent = queueNotice;
+      renderCardKeyNotice();
       setActivationState('inactive', '未激活');
       if (message) showToast(message);
     }
@@ -764,6 +834,7 @@
     function saveActivationSession() {
       localStorage.setItem(activationSessionStorageKey, JSON.stringify({
         clientId,
+        password: activationPassword,
         token: activationToken,
         expiresAt: activationExpiresAt
       }));
@@ -772,7 +843,7 @@
     function restoreActivationSession() {
       try {
         const session = JSON.parse(localStorage.getItem(activationSessionStorageKey) || 'null');
-        if (!session || session.clientId !== clientId || !session.token || !session.expiresAt || session.expiresAt <= Date.now()) {
+        if (!session || session.clientId !== clientId || session.password !== activationPassword || !session.token || !session.expiresAt || session.expiresAt <= Date.now()) {
           deactivateService();
           return;
         }
@@ -781,6 +852,7 @@
         activationToken = session.token || '';
         activationExpiresAt = session.expiresAt;
         setActivationState('active', '已激活');
+        renderCardKeyNotice();
         scheduleActivationExpire();
         startActivationMonitor();
         checkActivationWithServer({ silent: true, reason: 'restore' }).catch((error) => {
@@ -925,7 +997,7 @@
       }
 
       if (!isActivated) {
-        return Promise.reject(new Error('请点击右上角激活服务'));
+        return Promise.reject(new Error('授权未激活，请联系客服'));
       }
 
       if (authCheckPromise) return authCheckPromise;
@@ -973,7 +1045,8 @@
       }
 
       if (!activationPassword) {
-        openActivationModal();
+        renderCardKeyNotice();
+        showToast('链接缺少卡密，请联系客服');
         return;
       }
 
@@ -1012,6 +1085,13 @@
           setActivationState('inactive', '未激活');
           showToast(error.message || '激活失败');
         });
+    }
+
+    function autoActivateFromUrl() {
+      if (!activationPasswordFromUrl || isActivated || !activationPassword) return;
+      closeActivationModal();
+      showToast('正在自动激活');
+      activateService();
     }
 
     function startCodeWait(initialCode) {
@@ -1053,18 +1133,31 @@
     }
 
     function renderAccount(item) {
-      phoneView.textContent = formatSvipPhone(item.phone);
-      phoneView.dataset.full = item.phone;
+      const loginValue = formatSvipPhone(item.phone);
+      phoneView.textContent = loginValue;
+      phoneView.dataset.full = loginValue;
       phoneView.classList.add('is-fetched');
       codeView.dataset.full = '';
       codeView.textContent = '获取后5分钟有效';
-      notice.textContent = queueNotice;
+      markCurrentCardUsed();
       startCodeWait(item.code);
     }
 
     async function getAccount() {
       if (!isActivationValid()) {
-        showToast('请点击右上角激活服务');
+        if (activationPassword) {
+          if (!pendingAuthRequestId) activateService();
+          showToast('正在激活，请稍后再获取');
+        } else {
+          renderCardKeyNotice();
+          showToast('链接缺少卡密，请联系客服');
+        }
+        return;
+      }
+
+      if (isCurrentCardUsed()) {
+        renderCardKeyNotice(true);
+        showToast(cardUsedMessage);
         return;
       }
 
@@ -1084,7 +1177,7 @@
       codeView.dataset.full = '';
       phoneView.textContent = '分配中';
       codeView.textContent = '等待验证码';
-      notice.textContent = '正在为你分配登录号，请稍等';
+      setNoticeText('正在为你分配登录号，请稍等');
 
       publishMqtt(mqttTopics.accountRequest, {
         type: 'account_request',
@@ -1102,7 +1195,7 @@
             codeView.dataset.full = '';
             phoneView.textContent = '打开软件后再获取';
             codeView.textContent = '获取后5分钟有效';
-            notice.textContent = queueNotice;
+            renderCardKeyNotice();
             showToast('获取超时，请重试');
           }
         }, EMQX_CONFIG.accountRequestTimeoutMs);
@@ -1115,7 +1208,7 @@
         codeView.dataset.full = '';
         phoneView.textContent = '打开软件后再获取';
         codeView.textContent = '获取后5分钟有效';
-        notice.textContent = queueNotice;
+        renderCardKeyNotice();
         showToast(error.message || '获取失败');
       });
     }
@@ -1163,27 +1256,36 @@
         const reason = payload.reason || '';
         const message = payload.message || '';
         const noPhone = reason === 'no_phone' || message.includes('无号码') || message.includes('号码库暂无可用号码');
+        const cardUsed = reason === 'card_used' || reason === 'used' || reason === 'already_used' || message.includes('卡密已使用') || message.includes('已使用');
         pendingAccountRequestId = '';
         clearCodeTimers();
         phoneView.classList.remove('is-fetched');
         phoneView.dataset.full = '';
         codeView.dataset.full = '';
+        if (cardUsed) {
+          phoneView.textContent = '联系客服';
+          codeView.textContent = '卡密已使用';
+          markCurrentCardUsed();
+          showToast(cardUsedMessage);
+          return;
+        }
+
         if (noPhone) {
           phoneView.textContent = '无号码';
           codeView.textContent = '联系客服';
-          notice.textContent = '号码库暂无可用号码，请稍后再试';
+          setNoticeText('号码库暂无可用号码，请稍后再试');
           showToast('无号码');
           return;
         }
 
         if (reason === 'expired' || reason === 'revoked' || reason === 'not_activated' || reason === 'token_mismatch' || reason === 'client_mismatch') {
           phoneView.textContent = '未激活';
-          codeView.textContent = '请点击右上角激活服务';
-          notice.textContent = '请先完成激活审核';
+          codeView.textContent = '请联系客服';
+          setNoticeText('请先完成激活审核');
         } else {
           phoneView.textContent = '打开软件后再获取';
           codeView.textContent = '获取后5分钟有效';
-          notice.textContent = queueNotice;
+          renderCardKeyNotice();
         }
         showToast(message || '分配失败');
         return;
@@ -1245,13 +1347,15 @@
       phoneShell.style.minHeight = `${Math.ceil(window.innerHeight / scale)}px`;
     }
 
-    activationButton.addEventListener('click', () => {
-      if (isActivated) {
-        showToast('服务已激活');
-        return;
-      }
-      openActivationModal();
-    });
+    if (activationButton) {
+      activationButton.addEventListener('click', () => {
+        if (isActivated) {
+          showToast('服务已激活');
+          return;
+        }
+        openActivationModal();
+      });
+    }
 
     activationForm.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -1283,7 +1387,9 @@
     });
 
     window.addEventListener('resize', fitPhone);
+    renderCardKeyNotice();
     restoreActivationSession();
+    autoActivateFromUrl();
     fitPhone();
   </script>
 </body>
