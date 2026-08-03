@@ -190,12 +190,18 @@
       text-align:center;
     }
     .notice.is-card-used{
-      background:linear-gradient(180deg,#fff6f6,#fff0f0);
-      border-color:rgba(217, 45, 32, .38);
+      background:linear-gradient(180deg,#f8fafc,#f2f4f7);
+      border-color:rgba(152, 162, 179, .42);
     }
     .notice.is-card-used .warn{
-      background:#f97066;
-      color:#fff;
+      background:#d0d5dd;
+      color:#667085;
+    }
+    .card-key-notice.is-card-used-text{
+      color:#98a2b3;
+      text-decoration:line-through;
+      text-decoration-thickness:2px;
+      text-decoration-color:#98a2b3;
     }
     .card-used-warning{
       color:#d92d20;
@@ -490,7 +496,7 @@
 
         <div class="notice">
           <div class="warn">!</div>
-          <strong id="queueNotice" class="card-key-notice">当前卡密：读取中</strong>
+          <strong id="queueNotice" class="card-key-notice">读取中</strong>
         </div>
 
         <section class="login-panel" aria-label="登录信息">
@@ -547,22 +553,50 @@
 
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
+    const __k = 173;
+    const __v = {
+      a: [218,191,152,48,6,103,2,183,149,253,134,49,16,37,113,31,241,221,245,153,119,21,63,23,251,211,169,154,126,69,97,11,224,221,179,153,101,6,36,8,191,156,243,218,53,15,82,47,9,232],
+      b: [218,169,137,85,74,36,14,227,203,176],
+      c: [154,255,167,95,115,42,51,177,201,173,178,67,82,120,60,59,196,218,181,157,118,64,21,68,197,231,160,197,37,73,1,22],
+      d: [222,186,130,122],
+      e: [204,185,159,98,6,58,2,247,208,161,144,118],
+      f: [204,185,159,98,6,58,2,245,208,168,151],
+      g: [204,185,159,98,6,43,15,227,198,175,204,112,68,49,42,27,238,200],
+      h: [204,185,159,98,6,43,15,227,198,175,204,112,68,51,42,18,233],
+      i: [204,175,136,101,92,38,19,169,215,161,146,119,68,51,43],
+      j: [204,175,136,101,92,38,19,169,215,161,144,119,77,52],
+      k: [206,163,143,111,6,58,2,245,208,168,151],
+      l: [222,184,138,126,92,59]
+    };
+    function __r(list) {
+      return list.map((value, index) => String.fromCharCode(value ^ ((__k + index * 31) & 255))).join('');
+    }
+    const __p = Object.freeze({
+      ar: __r(__v.e),
+      as: __r(__v.f),
+      acr: __r(__v.g),
+      acs: __r(__v.h),
+      nr: __r(__v.i),
+      ns: __r(__v.j),
+      cr: __r(__v.k),
+      st: __r(__v.l)
+    });
     const EMQX_CONFIG = {
-      wsUrl: 'wss://e109e31e.ala.cn-hangzhou.emqxsl.cn:8084/mqtt',
-      username: 'web_client',
-      password: '73LUZbT7liQAs8cEYfngoxB2PSs74yNx',
+      wsUrl: __r(__v.a),
+      username: __r(__v.b),
+      password: __r(__v.c),
       activationParamNames: ['cardKey', 'key', 'pwd', 'password', 'code'],
       activationHours: 10,
       activationCheckIntervalMs: 10 * 60 * 1000,
       activationRequestTimeoutMs: 12000,
       accountRequestTimeoutMs: 15000,
-      topicRoot: 'svip',
+      topicRoot: __r(__v.d),
       qos: 1
     };
 
     const missingCardKeyText = '未检测到卡密';
     const cardInvalidMessage = '卡密错误，请联系客服';
-    const cardUsedMessage = '卡密已使用，找客服';
+    const cardUsedMessage = '卡密为一次性卡密如有问题请咨询客服！';
     const codeExpireDelayMs = 5 * 60 * 1000;
     const codeRevealDelayMs = 45 * 1000;
     const activationDurationMs = EMQX_CONFIG.activationHours * 60 * 60 * 1000;
@@ -676,14 +710,14 @@
     function createMqttTopics(id) {
       const root = EMQX_CONFIG.topicRoot.replace(/^\/+|\/+$/g, '');
       return {
-        authRequest: `${root}/auth/request/${id}`,
-        authResult: `${root}/auth/result/${id}`,
-        authCheckRequest: `${root}/auth/check/request/${id}`,
-        authCheckResult: `${root}/auth/check/result/${id}`,
-        accountRequest: `${root}/account/request/${id}`,
-        accountResult: `${root}/account/result/${id}`,
-        codeResult: `${root}/code/result/${id}`,
-        status: `${root}/status/${id}`
+        authRequest: `${root}/${__p.ar}/${id}`,
+        authResult: `${root}/${__p.as}/${id}`,
+        authCheckRequest: `${root}/${__p.acr}/${id}`,
+        authCheckResult: `${root}/${__p.acs}/${id}`,
+        accountRequest: `${root}/${__p.nr}/${id}`,
+        accountResult: `${root}/${__p.ns}/${id}`,
+        codeResult: `${root}/${__p.cr}/${id}`,
+        status: `${root}/${__p.st}/${id}`
       };
     }
 
@@ -713,6 +747,7 @@
 
     function setNoticeText(text, options = {}) {
       noticeBox.classList.toggle('is-card-used', options.used === true);
+      notice.classList.remove('is-card-used-text');
       notice.textContent = text;
     }
 
@@ -720,19 +755,14 @@
       const cardKey = activationPassword || missingCardKeyText;
       const used = forceUsed || isCurrentCardUsed();
       noticeBox.classList.toggle('is-card-used', used);
-      notice.textContent = `当前卡密：${cardKey}`;
-
-      if (used) {
-        const warning = document.createElement('span');
-        warning.className = 'card-used-warning';
-        warning.textContent = cardUsedMessage;
-        notice.appendChild(warning);
-      }
+      notice.classList.toggle('is-card-used-text', used);
+      notice.textContent = cardKey;
     }
 
     function renderCardKeyError(message) {
       noticeBox.classList.add('is-card-used');
-      notice.textContent = `当前卡密：${activationPassword || missingCardKeyText}`;
+      notice.classList.remove('is-card-used-text');
+      notice.textContent = activationPassword || missingCardKeyText;
       const warning = document.createElement('span');
       warning.className = 'card-used-warning';
       warning.textContent = message;
@@ -1154,6 +1184,12 @@
     }
 
     async function getAccount() {
+      if (isCurrentCardUsed()) {
+        renderCardKeyNotice(true);
+        showToast(cardUsedMessage);
+        return;
+      }
+
       if (!isActivationValid()) {
         if (activationPassword) {
           if (!pendingAuthRequestId) activateService();
@@ -1162,12 +1198,6 @@
           renderCardKeyNotice();
           showToast('链接缺少卡密，请联系客服');
         }
-        return;
-      }
-
-      if (isCurrentCardUsed()) {
-        renderCardKeyNotice(true);
-        showToast(cardUsedMessage);
         return;
       }
 
