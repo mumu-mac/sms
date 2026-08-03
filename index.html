@@ -1140,6 +1140,7 @@
       clearCodeTimers();
       codeView.textContent = code;
       codeView.dataset.full = code;
+      markCurrentCardUsed();
     }
 
     function renderAccount(item) {
@@ -1149,7 +1150,6 @@
       phoneView.classList.add('is-fetched');
       codeView.dataset.full = '';
       codeView.textContent = '获取后5分钟有效';
-      markCurrentCardUsed();
       startCodeWait(item.code);
     }
 
@@ -1280,6 +1280,7 @@
         const reason = payload.reason || '';
         const message = payload.message || '';
         const noPhone = reason === 'no_phone' || message.includes('无号码') || message.includes('号码库暂无可用号码');
+        const queueBusy = reason === 'queue_busy' || message.includes('排队');
         const cardUsed = reason === 'card_used' || reason === 'used' || reason === 'already_used' || message.includes('卡密已使用') || message.includes('已使用');
         pendingAccountRequestId = '';
         clearCodeTimers();
@@ -1299,6 +1300,14 @@
           codeView.textContent = '联系客服';
           setNoticeText('号码库暂无可用号码，请稍后再试');
           showToast('无号码');
+          return;
+        }
+
+        if (queueBusy) {
+          phoneView.textContent = '请排队等待';
+          codeView.textContent = '前面有一人';
+          setNoticeText('前面有一人，请排队等待');
+          showToast('前面有一人，请排队等待');
           return;
         }
 
