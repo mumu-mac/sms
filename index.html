@@ -527,13 +527,13 @@
   <div class="modal-backdrop" id="activationModal" aria-hidden="true">
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="activationModalTitle">
       <div class="modal-head">
-        <h2 id="activationModalTitle">输入激活码</h2>
+        <h2 id="activationModalTitle">输入卡密</h2>
         <p>点击确认后会向服务器发送激活请求。</p>
       </div>
       <form class="modal-body" id="activationForm">
         <label for="activationInput">
-          激活码
-          <input class="modal-input" id="activationInput" name="activationCode" type="text" autocomplete="off" placeholder="请输入激活码">
+          卡密
+          <input class="modal-input" id="activationInput" name="cardKey" type="text" autocomplete="off" placeholder="请输入卡密">
         </label>
         <div class="modal-actions">
           <button class="modal-btn secondary" id="activationCancel" type="button">取消</button>
@@ -561,6 +561,7 @@
     };
 
     const missingCardKeyText = '未检测到卡密';
+    const cardInvalidMessage = '卡密错误，请联系客服';
     const cardUsedMessage = '卡密已使用，找客服';
     const codeExpireDelayMs = 5 * 60 * 1000;
     const codeRevealDelayMs = 45 * 1000;
@@ -729,6 +730,15 @@
       }
     }
 
+    function renderCardKeyError(message) {
+      noticeBox.classList.add('is-card-used');
+      notice.textContent = `当前卡密：${activationPassword || missingCardKeyText}`;
+      const warning = document.createElement('span');
+      warning.className = 'card-used-warning';
+      warning.textContent = message;
+      notice.appendChild(warning);
+    }
+
     function markCurrentCardUsed() {
       if (activationPassword) {
         const usedCards = getUsedCardKeys();
@@ -834,7 +844,7 @@
     function saveActivationSession() {
       localStorage.setItem(activationSessionStorageKey, JSON.stringify({
         clientId,
-        password: activationPassword,
+        cardKey: activationPassword,
         token: activationToken,
         expiresAt: activationExpiresAt
       }));
@@ -843,7 +853,7 @@
     function restoreActivationSession() {
       try {
         const session = JSON.parse(localStorage.getItem(activationSessionStorageKey) || 'null');
-        if (!session || session.clientId !== clientId || session.password !== activationPassword || !session.token || !session.expiresAt || session.expiresAt <= Date.now()) {
+        if (!session || session.clientId !== clientId || session.cardKey !== activationPassword || !session.token || !session.expiresAt || session.expiresAt <= Date.now()) {
           deactivateService();
           return;
         }
@@ -1011,14 +1021,14 @@
         authCheckResolve = resolve;
         authCheckReject = reject;
 
-        publishMqtt(mqttTopics.authCheckRequest, {
-          type: 'auth_check',
-          clientId,
-          requestId: pendingAuthCheckRequestId,
-          password: activationPassword,
-          activationToken,
-          activationExpiresAt,
-          reason: options.reason || 'manual',
+      publishMqtt(mqttTopics.authCheckRequest, {
+        type: 'auth_check',
+        clientId,
+        requestId: pendingAuthCheckRequestId,
+        cardKey: activationPassword,
+        activationToken,
+        activationExpiresAt,
+        reason: options.reason || 'manual',
           ts: Date.now()
         }).catch((error) => {
           const rejectCheck = authCheckReject;
@@ -1059,7 +1069,7 @@
         type: 'activate',
         clientId,
         requestId,
-        password: activationPassword,
+        cardKey: activationPassword,
         durationHours: EMQX_CONFIG.activationHours,
         page: location.href,
         userAgent: navigator.userAgent,
@@ -1222,7 +1232,21 @@
       const allowed = payload.ok === true || payload.success === true || payload.allowed === true || payload.status === 'ok';
       const granted = allowed && applyActivationGranted(payload, { message: '激活成功' });
       if (!granted) {
-        deactivateService(allowed ? '激活信息不完整' : (payload.message || '激活失败'));
+        const reason = payload.reason || '';
+        const message = payload.message || '';
+        if (reason === 'card_not_found' || reason === 'key_not_found') {
+          deactivateService();
+          renderCardKeyError(cardInvalidMessage);
+          showToast(cardInvalidMessage);
+          return;
+        }
+        if (reason === 'card_used' || reason === 'used' || message.includes('已使用')) {
+          deactivateService();
+          markCurrentCardUsed();
+          showToast(cardUsedMessage);
+          return;
+        }
+        deactivateService(allowed ? '激活信息不完整' : (message || '激活失败'));
         return;
       }
     }
@@ -1361,7 +1385,7 @@
       event.preventDefault();
       const value = activationInput.value.trim();
       if (!value) {
-        showToast('请先输入激活码');
+        showToast('请先输入卡密');
         activationInput.focus();
         return;
       }
