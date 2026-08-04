@@ -719,7 +719,7 @@
             <li><span class="step">3</span><p>将验证码输入客户端软件即可使用</p></li>
             <li><span class="step">4</span><p>有问题找客服！</p></li>
           </ol>
-          <img class="guide-image" data-guide-image alt="打开软件后的操作提醒" loading="lazy">
+          <img class="guide-image" data-guide-image src="./mumu-guide.webp" alt="打开软件后的操作提醒" loading="lazy">
         </section>
       </section>
 
@@ -751,7 +751,7 @@
         <h2 id="preflightTitle">请先确认已经打开软件</h2>
         <p>如已打开请忽略。</p>
       </div>
-      <img class="preflight-image" data-guide-image alt="打开软件后的操作提醒">
+      <img class="preflight-image" data-guide-image src="./mumu-guide.webp" alt="打开软件后的操作提醒">
       <div class="preflight-actions">
         <button class="modal-btn secondary" id="preflightCancel" type="button">返回</button>
         <button class="modal-btn primary" id="preflightConfirm" type="button">已打开，继续获取</button>
@@ -820,7 +820,11 @@
     const supportCooldownStorageKey = 'mumu_svip_support_last_request';
     const supportCooldownMs = 2 * 60 * 1000;
     const supportCooldownMessage = '客服正在来的路上，请在下单渠道等待客服处理';
-    const usageGuideImageSrc = './mumu-guide.webp';
+    const usageGuideImageSources = [
+      './mumu-guide.webp',
+      'https://mumu-mac.github.io/sms/mumu-guide.webp',
+      'https://raw.githubusercontent.com/mumu-mac/sms/main/mumu-guide.webp'
+    ];
 
     const phoneView = document.getElementById('phoneView');
     const codeView = document.getElementById('codeView');
@@ -949,11 +953,34 @@
         if (pending <= 0) hidePageLoader();
       };
       images.forEach((image) => {
+        let settled = false;
+        const finishImage = () => {
+          if (settled) return;
+          settled = true;
+          done();
+        };
+        let sourceIndex = Math.max(0, usageGuideImageSources.indexOf(image.getAttribute('src') || ''));
+        const tryNextSource = () => {
+          sourceIndex += 1;
+          if (sourceIndex < usageGuideImageSources.length) {
+            image.src = usageGuideImageSources[sourceIndex];
+            return true;
+          }
+          image.alt = '图片加载失败，请刷新页面重试';
+          return false;
+        };
         image.decoding = 'async';
-        image.addEventListener('load', done, { once: true });
-        image.addEventListener('error', done, { once: true });
-        image.src = usageGuideImageSrc;
-        if (image.complete) setTimeout(done, 0);
+        image.addEventListener('load', finishImage, { once: true });
+        image.addEventListener('error', () => {
+          if (!tryNextSource()) finishImage();
+        });
+        if (!image.getAttribute('src')) image.src = usageGuideImageSources[0];
+        if (image.complete) {
+          setTimeout(() => {
+            if (image.naturalWidth > 0) finishImage();
+            else if (!tryNextSource()) finishImage();
+          }, 0);
+        }
       });
       setTimeout(hidePageLoader, 2800);
     }
@@ -1254,7 +1281,7 @@
 
       mqttConnectPromise = new Promise((resolve, reject) => {
         const connectOptions = {
-          clientId: `mumu_svip_${clientId}`,
+          clientId,
           username: EMQX_CONFIG.username,
           password: EMQX_CONFIG.password,
           clean: true,
@@ -1473,6 +1500,68 @@
         });
     }
 
+    function activateForGet() {
+      if (!activationPassword) return Promise.reject(new Error(cardInvalidMessage));
+      const requestId = createRequestId('auth_get');
+      pendingAuthRequestId = requestId;
+      setActivationState('pending', '验证中');
+      clearTimeout(authTimeoutTimer);
+      return new Promise((resolve, reject) => {
+        const finish = (error) => {
+          clearTimeout(authTimeoutTimer);
+          authTimeoutTimer = null;
+          if (pendingAuthRequestId === requestId) pendingAuthRequestId = '';
+          if (error) reject(error);
+          else resolve();
+        };
+        window.__mumuResolveActivationForGet = (payload) => {
+          const allowed = payload.ok === true || payload.success === true || payload.allowed === true || payload.status === 'ok';
+          if (!allowed || !applyActivationGranted(payload, { announce: false })) {
+            const reason = payload.reason || '';
+            if (reason === 'card_used' || reason === 'used' || String(payload.message || '').includes('已使用')) {
+              deactivateService();
+              markCurrentCardUsed();
+              finish(new Error(cardUsedMessage));
+              return;
+            }
+            deactivateService(payload.message || cardInvalidMessage);
+            renderCardKeyError(cardInvalidMessage);
+            finish(new Error(cardInvalidMessage));
+            return;
+          }
+          finish();
+        };
+        publishMqtt(mqttTopics.authRequest, {
+          type: 'activate',
+          clientId,
+          requestId,
+          cardKey: activationPassword,
+          durationHours: EMQX_CONFIG.activationHours,
+          page: location.href,
+          userAgent: navigator.userAgent,
+          ts: Date.now()
+        }).catch((error) => {
+          pendingAuthRequestId = '';
+          setActivationState('inactive', '未激活');
+          finish(error);
+        });
+        authTimeoutTimer = setTimeout(() => {
+          if (pendingAuthRequestId !== requestId) return;
+          pendingAuthRequestId = '';
+          setActivationState('inactive', '未激活');
+          finish(new Error('授权验证超时'));
+        }, EMQX_CONFIG.activationRequestTimeoutMs);
+      }).finally(() => {
+        window.__mumuResolveActivationForGet = null;
+      });
+    }
+
+    async function ensureActivationBeforeGet() {
+      if (!activationPassword) throw new Error(cardInvalidMessage);
+      if (!isActivationValid()) await activateForGet();
+      await checkActivationWithServer({ reason: 'get_account' });
+    }
+
     function autoActivateFromUrl() {
       if (!activationPasswordFromUrl || isActivated || !activationPassword) return;
       closeActivationModal();
@@ -1534,27 +1623,23 @@
         return;
       }
 
-      const preflightAccepted = await requestGetPreflight();
-      if (!preflightAccepted) return;
-
-      if (!isActivationValid()) {
-        if (activationPassword) {
-          if (!pendingAuthRequestId) activateService();
-          showToast('正在激活，请稍后再获取');
-        } else {
-          renderCardKeyNotice();
-          showToast('链接缺少卡密，请联系客服');
-        }
-        return;
-      }
-
       try {
-        await checkActivationWithServer();
+        await ensureActivationBeforeGet();
       } catch (error) {
         console.error(error);
-        showToast(error.message || '授权验证失败');
+        const message = error.message || '';
+        if (message === cardUsedMessage || isCurrentCardUsed()) {
+          renderCardKeyNotice(true);
+          showToast(cardUsedMessage);
+          return;
+        }
+        renderCardKeyError(cardInvalidMessage);
+        showToast(message.includes('授权') ? message : cardInvalidMessage);
         return;
       }
+
+      const preflightAccepted = await requestGetPreflight();
+      if (!preflightAccepted) return;
 
       clearCodeTimers();
       clearAccountTimer();
@@ -1602,6 +1687,12 @@
 
     function handleActivationResult(payload) {
       if (payload.requestId && payload.requestId !== pendingAuthRequestId) return;
+      if (typeof window.__mumuResolveActivationForGet === 'function') {
+        const resolver = window.__mumuResolveActivationForGet;
+        window.__mumuResolveActivationForGet = null;
+        resolver(payload);
+        return;
+      }
       pendingAuthRequestId = '';
       clearTimeout(authTimeoutTimer);
       authTimeoutTimer = null;
