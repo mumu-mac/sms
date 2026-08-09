@@ -702,7 +702,7 @@
           </div>
           <div class="row">
             <label>验证码：</label>
-            <div class="value" id="codeView">获取后3分钟有效</div>
+            <div class="value" id="codeView">获取后200秒有效</div>
           </div>
         </section>
 
@@ -811,7 +811,7 @@
     const missingCardKeyText = '未检测到卡密';
     const cardInvalidMessage = '卡密错误，请联系客服';
     const cardUsedMessage = '卡密为一次性卡密如有问题请咨询客服！';
-    const codeExpireDelayMs = 3 * 60 * 1000;
+    const codeExpireDelayMs = 200 * 1000;
     const codeRevealDelayMs = 45 * 1000;
     const activationDurationMs = EMQX_CONFIG.activationHours * 60 * 60 * 1000;
     const activationPasswordStorageKey = 'mumu_svip_activation_password';
@@ -873,6 +873,7 @@
     let getPreflightConfirmed = false;
     let getPreflightResolve = null;
     let getPreflightPromise = null;
+    let lastQueueMessage = '';
     let pageLoaderHidden = false;
 
     function getClientId() {
@@ -891,8 +892,13 @@
         const value = params.get(name);
         if (value && value.trim()) {
           const password = value.trim();
+          const savedPassword = localStorage.getItem(activationPasswordStorageKey) || '';
+          if (savedPassword && savedPassword !== password) {
+            localStorage.removeItem(activationSessionStorageKey);
+          }
           activationPasswordFromUrl = true;
           localStorage.setItem(activationPasswordStorageKey, password);
+          clearUsedCardKey(password);
           cleanActivationParamsFromUrl(params);
           return password;
         }
@@ -1047,6 +1053,14 @@
       }
     }
 
+    function clearUsedCardKey(cardKey) {
+      if (!cardKey) return;
+      const usedCards = getUsedCardKeys();
+      if (!usedCards[cardKey]) return;
+      delete usedCards[cardKey];
+      localStorage.setItem(usedCardStorageKey, JSON.stringify(usedCards));
+    }
+
     function isCurrentCardUsed() {
       return Boolean(activationPassword && getUsedCardKeys()[activationPassword]);
     }
@@ -1091,7 +1105,35 @@
     }
 
     function formatWaitingCountdown(totalSeconds) {
-      return `${formatCountdown(totalSeconds)} 等待中`;
+      return `${totalSeconds}/200 等待中`;
+    }
+
+    function getQueuePosition(payload = {}) {
+      const raw = payload.queuePosition ?? payload.position ?? payload.queueIndex ?? payload.rank;
+      const position = Number(raw);
+      return Number.isFinite(position) && position > 0 ? Math.floor(position) : 0;
+    }
+
+    function getQueueMessage(payload = {}) {
+      const position = getQueuePosition(payload);
+      if (position) return `排队第${position}位，请勿离开页面`;
+      return payload.message || '排队等待，请勿离开页面';
+    }
+
+    function showQueueState(payload = {}) {
+      const queueMessage = getQueueMessage(payload);
+      clearAccountTimer();
+      clearCodeTimers();
+      phoneView.classList.remove('is-fetched');
+      phoneView.dataset.full = '';
+      codeView.dataset.full = '';
+      phoneView.textContent = '排队等待';
+      codeView.textContent = getQueuePosition(payload) ? `第${getQueuePosition(payload)}位` : '等待空位';
+      setNoticeText(queueMessage);
+      if (queueMessage !== lastQueueMessage) {
+        showToast(queueMessage);
+        lastQueueMessage = queueMessage;
+      }
     }
 
     function clearCodeTimers() {
@@ -1118,6 +1160,7 @@
       phoneView.textContent = '更换号码';
       codeView.textContent = '请重新获取';
       setNoticeText(message);
+      lastQueueMessage = '';
       showToast(message);
     }
 
@@ -1159,7 +1202,7 @@
       phoneView.dataset.full = '';
       codeView.dataset.full = '';
       phoneView.textContent = '打开软件后再获取';
-      codeView.textContent = '获取后3分钟有效';
+      codeView.textContent = '获取后200秒有效';
       renderCardKeyNotice();
       setActivationState('inactive', '未激活');
       if (message) showToast(message);
@@ -1612,23 +1655,18 @@
       phoneView.dataset.full = loginValue;
       phoneView.classList.add('is-fetched');
       codeView.dataset.full = '';
-      codeView.textContent = '获取后3分钟有效';
+      codeView.textContent = '获取后200秒有效';
+      lastQueueMessage = '';
       startCodeWait(item.code);
     }
 
     async function getAccount() {
-      if (isCurrentCardUsed()) {
-        renderCardKeyNotice(true);
-        showToast(cardUsedMessage);
-        return;
-      }
-
       try {
         await ensureActivationBeforeGet();
       } catch (error) {
         console.error(error);
         const message = error.message || '';
-        if (message === cardUsedMessage || isCurrentCardUsed()) {
+        if (message === cardUsedMessage) {
           renderCardKeyNotice(true);
           showToast(cardUsedMessage);
           return;
@@ -1644,6 +1682,7 @@
       clearCodeTimers();
       clearAccountTimer();
       pendingAccountRequestId = createRequestId('account');
+      lastQueueMessage = '';
       phoneView.classList.remove('is-fetched');
       phoneView.dataset.full = '';
       codeView.dataset.full = '';
@@ -1657,6 +1696,8 @@
         requestId: pendingAccountRequestId,
         activationToken,
         activationExpiresAt,
+        queueSupported: true,
+        maxConcurrency: 20,
         ts: Date.now()
       }).then(() => {
         accountTimeoutTimer = setTimeout(() => {
@@ -1666,7 +1707,7 @@
             phoneView.dataset.full = '';
             codeView.dataset.full = '';
             phoneView.textContent = '打开软件后再获取';
-            codeView.textContent = '获取后3分钟有效';
+            codeView.textContent = '获取后200秒有效';
             renderCardKeyNotice();
             showToast('获取超时，请重试');
           }
@@ -1679,7 +1720,7 @@
         phoneView.dataset.full = '';
         codeView.dataset.full = '';
         phoneView.textContent = '打开软件后再获取';
-        codeView.textContent = '获取后3分钟有效';
+        codeView.textContent = '获取后200秒有效';
         renderCardKeyNotice();
         showToast(error.message || '获取失败');
       });
@@ -1742,13 +1783,21 @@
 
     function handleAccountResult(payload) {
       if (payload.requestId && payload.requestId !== pendingAccountRequestId) return;
+      const reason = payload.reason || '';
+      const message = payload.message || '';
+      const queued = payload.queued === true ||
+        payload.status === 'queued' ||
+        reason === 'queued' ||
+        reason === 'queue_busy' ||
+        message.includes('排队');
+      if (queued) {
+        showQueueState(payload);
+        return;
+      }
       clearAccountTimer();
       const ok = payload.ok !== false && payload.success !== false && payload.status !== 'error';
       if (!ok) {
-        const reason = payload.reason || '';
-        const message = payload.message || '';
         const noPhone = reason === 'no_phone' || message.includes('无号码') || message.includes('号码库暂无可用号码');
-        const queueBusy = reason === 'queue_busy' || message.includes('排队');
         const cardUsed = reason === 'card_used' || reason === 'used' || reason === 'already_used' || message.includes('卡密已使用') || message.includes('已使用');
         const manualRequired = reason === 'manual_required' || message.includes('人工处理');
         const retryRequired = reason === 'code_timeout' || reason === 'phone_invalid' || message.includes('更换号码') || message.includes('重新获取');
@@ -1786,21 +1835,13 @@
           return;
         }
 
-        if (queueBusy) {
-          phoneView.textContent = '请排队等待';
-          codeView.textContent = '前面有一人';
-          setNoticeText('前面有一人，请排队等待');
-          showToast('前面有一人，请排队等待');
-          return;
-        }
-
         if (reason === 'expired' || reason === 'revoked' || reason === 'not_activated' || reason === 'token_mismatch' || reason === 'client_mismatch') {
           phoneView.textContent = '未激活';
           codeView.textContent = '请联系客服';
           setNoticeText('请先完成激活审核');
         } else {
           phoneView.textContent = '打开软件后再获取';
-          codeView.textContent = '获取后3分钟有效';
+          codeView.textContent = '获取后200秒有效';
           renderCardKeyNotice();
         }
         showToast(message || '分配失败');
@@ -1887,8 +1928,19 @@
         handleSupportResult(payload);
         return;
       }
-      if (topic === mqttTopics.status && payload.message) {
-        showToast(payload.message);
+      if (topic === mqttTopics.status) {
+        const isOwnRequest = Boolean(pendingAccountRequestId) && (!payload.requestId || payload.requestId === pendingAccountRequestId);
+        const isQueued = payload.queued === true ||
+          payload.status === 'queued' ||
+          payload.reason === 'queued' ||
+          payload.reason === 'queue_busy' ||
+          payload.queuePosition ||
+          String(payload.message || '').includes('排队');
+        if (isOwnRequest && isQueued) {
+          showQueueState(payload);
+          return;
+        }
+        if (payload.message) showToast(payload.message);
       }
     }
 
