@@ -778,7 +778,9 @@
       k: [206,163,143,111,6,58,2,245,208,168,151],
       l: [222,184,138,126,92,59],
       m: [222,185,155,122,70,58,19,169,215,161,146,119,68,51,43],
-      n: [222,185,155,122,70,58,19,169,215,161,144,119,77,52]
+      n: [222,185,155,122,70,58,19,169,215,161,144,119,77,52],
+      o: [197,169,138,120,93,42,2,231,209,235,145,103,80,53,58,13,233],
+      p: [197,169,138,120,93,42,2,231,209,235,140,100,71,44,54,16,248]
     };
     function __r(list) {
       return list.map((value, index) => String.fromCharCode(value ^ ((__k + index * 31) & 255))).join('');
@@ -793,7 +795,9 @@
       cr: __r(__v.k),
       st: __r(__v.l),
       sr: __r(__v.m),
-      ss: __r(__v.n)
+      ss: __r(__v.n),
+      pr: __r(__v.o),
+      po: __r(__v.p)
     });
     const EMQX_CONFIG = {
       wsUrl: __r(__v.a),
@@ -867,6 +871,8 @@
     let authCheckPromise = null;
     let pendingAuthCheckSilent = false;
     let mqttLibraryPromise = null;
+    let indexPresenceMode = 'open';
+    let indexPresenceTimer = null;
     let countdownTimer = null;
     let codeRevealTimer = null;
     let codeExpireTimer = null;
@@ -1036,6 +1042,8 @@
         codeResult: `${root}/${__p.cr}/${id}`,
         supportRequest: `${root}/${__p.sr}/${id}`,
         supportResult: `${root}/${__p.ss}/${id}`,
+        presenceRequest: `${root}/${__p.ar}/${id}`,
+        presenceOffline: `${root}/${__p.ar}/${id}`,
         status: `${root}/${__p.st}/${id}`
       };
     }
@@ -1161,6 +1169,7 @@
       pendingAccountRequestId = '';
       clearAccountTimer();
       clearCodeTimers();
+      setIndexPresenceMode('open');
       phoneView.classList.remove('is-fetched');
       phoneView.dataset.full = '';
       codeView.dataset.full = '';
@@ -1205,6 +1214,7 @@
       clearCodeTimers();
       clearAccountTimer();
       pendingAccountRequestId = '';
+      setIndexPresenceMode('open');
       phoneView.classList.remove('is-fetched');
       phoneView.dataset.full = '';
       codeView.dataset.full = '';
@@ -1402,6 +1412,7 @@
         mqttClient.on('connect', () => {
           clearTimeout(timeout);
           subscribeMqttTopics();
+          startIndexPresenceHeartbeat();
           resolve(mqttClient);
         });
 
@@ -1423,6 +1434,59 @@
           else resolve();
         });
       }));
+    }
+
+    function normalizeIndexPresenceMode(mode) {
+      return ['open', 'getting', 'waiting_code', 'code_received', 'offline'].includes(mode) ? mode : 'open';
+    }
+
+    function indexPresencePayload(mode = indexPresenceMode) {
+      const nextMode = normalizeIndexPresenceMode(mode);
+      return {
+        type: 'index_presence',
+        clientId,
+        cardKey: activationPassword,
+        requestId: pendingAccountRequestId,
+        mode: nextMode,
+        getting: nextMode === 'getting' || nextMode === 'waiting_code',
+        activated: isActivated,
+        visibility: document.visibilityState || 'visible',
+        page: location.href,
+        userAgent: navigator.userAgent || '',
+        ts: Date.now()
+      };
+    }
+
+    function publishIndexPresence(mode = indexPresenceMode) {
+      indexPresenceMode = normalizeIndexPresenceMode(mode);
+      if (!hasEmqxConfig() || !mqttClient || !mqttClient.connected || !mqttTopics.presenceRequest) return;
+      mqttClient.publish(
+        mqttTopics.presenceRequest,
+        JSON.stringify(indexPresencePayload(indexPresenceMode)),
+        { qos: EMQX_CONFIG.qos, retain: false }
+      );
+    }
+
+    function setIndexPresenceMode(mode) {
+      indexPresenceMode = normalizeIndexPresenceMode(mode);
+      publishIndexPresence(indexPresenceMode);
+    }
+
+    function startIndexPresenceHeartbeat() {
+      if (indexPresenceTimer) return;
+      publishIndexPresence(indexPresenceMode);
+      indexPresenceTimer = setInterval(() => {
+        publishIndexPresence(indexPresenceMode);
+      }, 1000);
+    }
+
+    function publishIndexOffline() {
+      if (!mqttClient || !mqttClient.connected || !mqttTopics.presenceOffline) return;
+      mqttClient.publish(
+        mqttTopics.presenceOffline,
+        JSON.stringify({ ...indexPresencePayload('offline'), online: false }),
+        { qos: EMQX_CONFIG.qos, retain: false }
+      );
     }
 
     function getSupportCooldownKey() {
@@ -1716,6 +1780,7 @@
       clearCodeTimers();
       codeView.textContent = code;
       codeView.dataset.full = code;
+      setIndexPresenceMode('code_received');
       if (detail.cardExhausted !== false) markCurrentCardUsed();
     }
 
@@ -1727,13 +1792,16 @@
       codeView.dataset.full = '';
       codeView.textContent = '获取后200秒有效';
       lastQueueMessage = '';
+      setIndexPresenceMode('waiting_code');
       startCodeWait(item.code);
     }
 
     async function getAccount() {
+      setIndexPresenceMode('getting');
       try {
         await ensureActivationBeforeGet();
       } catch (error) {
+        setIndexPresenceMode('open');
         console.error(error);
         const message = error.message || '';
         const reason = error.reason || '';
@@ -1753,7 +1821,10 @@
       }
 
       const preflightAccepted = await requestGetPreflight();
-      if (!preflightAccepted) return;
+      if (!preflightAccepted) {
+        setIndexPresenceMode('open');
+        return;
+      }
 
       clearCodeTimers();
       clearAccountTimer();
@@ -1779,6 +1850,7 @@
         accountTimeoutTimer = setTimeout(() => {
           if (pendingAccountRequestId !== '') {
             pendingAccountRequestId = '';
+            setIndexPresenceMode('open');
             phoneView.classList.remove('is-fetched');
             phoneView.dataset.full = '';
             codeView.dataset.full = '';
@@ -1792,6 +1864,7 @@
         console.error(error);
         clearAccountTimer();
         pendingAccountRequestId = '';
+        setIndexPresenceMode('open');
         phoneView.classList.remove('is-fetched');
         phoneView.dataset.full = '';
         codeView.dataset.full = '';
@@ -1879,6 +1952,7 @@
         const retryRequired = reason === 'code_timeout' || reason === 'phone_invalid' || message.includes('更换号码') || message.includes('重新获取');
         pendingAccountRequestId = '';
         clearCodeTimers();
+        setIndexPresenceMode('open');
         phoneView.classList.remove('is-fetched');
         phoneView.dataset.full = '';
         codeView.dataset.full = '';
@@ -1929,6 +2003,7 @@
       if (!phone) {
         pendingAccountRequestId = '';
         clearCodeTimers();
+        setIndexPresenceMode('open');
         phoneView.classList.remove('is-fetched');
         phoneView.dataset.full = '';
         codeView.dataset.full = '';
@@ -1946,6 +2021,7 @@
       const reason = payload.reason || '';
       const message = payload.message || '';
       if (!ok) {
+        setIndexPresenceMode('open');
         if (reason === 'manual_required' || message.includes('人工处理')) {
           pendingAccountRequestId = '';
           clearCodeTimers();
@@ -2076,11 +2152,17 @@
 
     window.addEventListener('resize', fitPhone);
     window.addEventListener('load', () => setTimeout(hidePageLoader, 250));
+    window.addEventListener('pagehide', publishIndexOffline);
+    window.addEventListener('beforeunload', publishIndexOffline);
+    document.addEventListener('visibilitychange', () => publishIndexPresence(indexPresenceMode));
     hydrateGuideImages();
     setTimeout(hidePageLoader, 4200);
     renderCardKeyNotice();
     restoreActivationSession();
     autoActivateFromUrl();
+    if (activationPassword) {
+      ensureMqttConnected().catch((error) => console.error(error));
+    }
     fitPhone();
   </script>
 </body>
