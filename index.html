@@ -915,12 +915,18 @@
     }
 
     function setActivationPassword(value) {
-      activationPassword = String(value || '').trim();
+      const nextPassword = String(value || '').trim();
+      if (activationPassword && activationPassword !== nextPassword) {
+        clearActivationSession();
+      }
+      activationPassword = nextPassword;
       if (activationPassword) {
         localStorage.setItem(activationPasswordStorageKey, activationPassword);
+        clearUsedCardKey(activationPassword);
       } else {
         localStorage.removeItem(activationPasswordStorageKey);
       }
+      renderCardKeyNotice();
     }
 
     function openActivationModal() {
@@ -1508,6 +1514,7 @@
 
       const requestId = createRequestId('auth');
       pendingAuthRequestId = requestId;
+      renderCardKeyNotice();
       setActivationState('pending', '激活中');
       clearTimeout(authTimeoutTimer);
 
@@ -1547,6 +1554,7 @@
       if (!activationPassword) return Promise.reject(new Error(cardInvalidMessage));
       const requestId = createRequestId('auth_get');
       pendingAuthRequestId = requestId;
+      renderCardKeyNotice();
       setActivationState('pending', '验证中');
       clearTimeout(authTimeoutTimer);
       return new Promise((resolve, reject) => {
