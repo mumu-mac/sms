@@ -866,6 +866,7 @@
     let authCheckReject = null;
     let authCheckPromise = null;
     let pendingAuthCheckSilent = false;
+    let mqttLibraryPromise = null;
     let countdownTimer = null;
     let codeRevealTimer = null;
     let codeExpireTimer = null;
@@ -1304,6 +1305,62 @@
       }
     }
 
+    function createFlowError(message, reason = '') {
+      const error = new Error(message || '操作失败');
+      error.reason = reason || '';
+      return error;
+    }
+
+    function isCardInvalidReason(reason, message = '') {
+      return reason === 'card_not_found' ||
+        reason === 'key_not_found' ||
+        reason === 'not_found_card' ||
+        message.includes('卡密错误');
+    }
+
+    function isCardUsedReason(reason, message = '') {
+      return reason === 'card_used' ||
+        reason === 'used' ||
+        reason === 'already_used' ||
+        message.includes('已使用');
+    }
+
+    function loadMqttLibrary() {
+      if (window.mqtt) return Promise.resolve();
+      if (mqttLibraryPromise) return mqttLibraryPromise;
+
+      const sources = [
+        'https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js',
+        'https://unpkg.com/mqtt/dist/mqtt.min.js'
+      ];
+
+      mqttLibraryPromise = new Promise((resolve, reject) => {
+        let index = 0;
+        const loadNext = () => {
+          if (window.mqtt) {
+            resolve();
+            return;
+          }
+          const src = sources[index++];
+          if (!src) {
+            reject(new Error('MQTT组件加载失败，请刷新重试'));
+            return;
+          }
+          const script = document.createElement('script');
+          script.src = src;
+          script.async = true;
+          script.onload = () => window.mqtt ? resolve() : loadNext();
+          script.onerror = loadNext;
+          document.head.appendChild(script);
+        };
+        loadNext();
+      }).finally(() => {
+        mqttLibraryPromise = null;
+      });
+
+      return mqttLibraryPromise;
+    }
+
     function subscribeMqttTopics() {
       [
         mqttTopics.authResult,
@@ -1326,9 +1383,7 @@
 
       if (mqttClient && mqttClient.connected) return Promise.resolve(mqttClient);
       if (mqttConnectPromise) return mqttConnectPromise;
-      if (!window.mqtt) return Promise.reject(new Error('MQTT 组件加载失败'));
-
-      mqttConnectPromise = new Promise((resolve, reject) => {
+      mqttConnectPromise = loadMqttLibrary().then(() => new Promise((resolve, reject) => {
         const connectOptions = {
           clientId,
           username: EMQX_CONFIG.username,
@@ -1354,7 +1409,7 @@
         mqttClient.on('error', (error) => {
           console.error('EMQX 连接错误', error);
         });
-      }).finally(() => {
+      })).finally(() => {
         mqttConnectPromise = null;
       });
 
@@ -1569,15 +1624,22 @@
           const allowed = payload.ok === true || payload.success === true || payload.allowed === true || payload.status === 'ok';
           if (!allowed || !applyActivationGranted(payload, { announce: false })) {
             const reason = payload.reason || '';
-            if (reason === 'card_used' || reason === 'used' || String(payload.message || '').includes('已使用')) {
+            const message = String(payload.message || '');
+            if (isCardUsedReason(reason, message)) {
               deactivateService();
               markCurrentCardUsed();
-              finish(new Error(cardUsedMessage));
+              finish(createFlowError(cardUsedMessage, reason));
               return;
             }
-            deactivateService(payload.message || cardInvalidMessage);
-            renderCardKeyError(cardInvalidMessage);
-            finish(new Error(cardInvalidMessage));
+            if (isCardInvalidReason(reason, message)) {
+              deactivateService();
+              renderCardKeyError(cardInvalidMessage);
+              finish(createFlowError(cardInvalidMessage, reason));
+              return;
+            }
+            deactivateService(message || '授权验证失败');
+            renderCardKeyNotice();
+            finish(createFlowError(message || '授权验证失败', reason));
             return;
           }
           finish();
@@ -1674,13 +1736,19 @@
       } catch (error) {
         console.error(error);
         const message = error.message || '';
+        const reason = error.reason || '';
         if (message === cardUsedMessage) {
           renderCardKeyNotice(true);
           showToast(cardUsedMessage);
           return;
         }
-        renderCardKeyError(cardInvalidMessage);
-        showToast(message.includes('授权') ? message : cardInvalidMessage);
+        if (isCardInvalidReason(reason, message)) {
+          renderCardKeyError(cardInvalidMessage);
+          showToast(cardInvalidMessage);
+          return;
+        }
+        renderCardKeyNotice();
+        showToast(message || '连接异常，请重试');
         return;
       }
 
@@ -1751,13 +1819,13 @@
       if (!granted) {
         const reason = payload.reason || '';
         const message = payload.message || '';
-        if (reason === 'card_not_found' || reason === 'key_not_found') {
+        if (isCardInvalidReason(reason, message)) {
           deactivateService();
           renderCardKeyError(cardInvalidMessage);
           showToast(cardInvalidMessage);
           return;
         }
-        if (reason === 'card_used' || reason === 'used' || message.includes('已使用')) {
+        if (isCardUsedReason(reason, message)) {
           deactivateService();
           markCurrentCardUsed();
           showToast(cardUsedMessage);
