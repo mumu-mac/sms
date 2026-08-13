@@ -748,13 +748,37 @@
   <div class="modal-backdrop" id="preflightModal" aria-hidden="true">
     <section class="preflight-modal" role="dialog" aria-modal="true" aria-labelledby="preflightTitle">
       <div class="preflight-head">
-        <h2 id="preflightTitle">请先确认已经打开软件</h2>
-        <p>如已打开请忽略。</p>
+        <h2 id="preflightTitle">第一步请点击打开你的软件</h2>
+        <p>再进行下一步。</p>
       </div>
       <img class="preflight-image" data-guide-image src="./mumu-guide.webp" alt="打开软件后的操作提醒">
       <div class="preflight-actions">
-        <button class="modal-btn secondary" id="preflightCancel" type="button">返回</button>
-        <button class="modal-btn primary" id="preflightConfirm" type="button">已打开，继续获取</button>
+        <button class="modal-btn secondary" id="preflightCancel" type="button" hidden>返回</button>
+        <button class="modal-btn primary" id="preflightConfirm" type="button">已打开软件</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="queueModal" aria-hidden="true">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="queueModalTitle">
+      <div class="modal-head">
+        <h2 id="queueModalTitle">排队取号中</h2>
+        <p id="queueModalMessage">请耐心等待，您是第1位，关闭页面重新排队。</p>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn primary" id="queueModalOk" type="button">知道了</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="readyConfirmModal" aria-hidden="true">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="readyConfirmTitle">
+      <div class="modal-head">
+        <h2 id="readyConfirmTitle">准备接码</h2>
+        <p id="readyConfirmMessage">已轮到你，请在10秒内确认开始。</p>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn primary" id="readyConfirmButton" type="button">确认接码</button>
       </div>
     </section>
   </div>
@@ -807,7 +831,7 @@
       activationHours: 10,
       activationCheckIntervalMs: 10 * 60 * 1000,
       activationRequestTimeoutMs: 12000,
-      accountRequestTimeoutMs: 15000,
+      accountRequestTimeoutMs: 10 * 60 * 1000,
       topicRoot: __r(__v.d),
       qos: 1
     };
@@ -843,12 +867,19 @@
     const preflightModal = document.getElementById('preflightModal');
     const preflightConfirm = document.getElementById('preflightConfirm');
     const preflightCancel = document.getElementById('preflightCancel');
+    const queueModal = document.getElementById('queueModal');
+    const queueModalMessage = document.getElementById('queueModalMessage');
+    const queueModalOk = document.getElementById('queueModalOk');
+    const readyConfirmModal = document.getElementById('readyConfirmModal');
+    const readyConfirmMessage = document.getElementById('readyConfirmMessage');
+    const readyConfirmButton = document.getElementById('readyConfirmButton');
     const stage = document.querySelector('.stage');
     const phoneShell = document.getElementById('phoneShell');
     const activationButton = document.getElementById('activationButton');
     const supportButton = document.getElementById('supportButton');
 
     const clientId = getClientId();
+    const pageId = createPageId();
     let activationPasswordFromUrl = false;
     let activationPassword = getActivationPassword();
     const mqttTopics = createMqttTopics(clientId);
@@ -880,6 +911,8 @@
     let getPreflightConfirmed = false;
     let getPreflightResolve = null;
     let getPreflightPromise = null;
+    let readyConfirmPayload = null;
+    let readyConfirmTimer = null;
     let lastQueueMessage = '';
     let pageLoaderHidden = false;
 
@@ -891,6 +924,11 @@
       const next = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(16).slice(2)}`).replace(/-/g, '');
       localStorage.setItem(storageKey, next);
       return next;
+    }
+
+    function createPageId() {
+      const next = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(16).slice(2)}`).replace(/-/g, '');
+      return `page_${next}`;
     }
 
     function getActivationPassword() {
@@ -1131,20 +1169,93 @@
 
     function getQueueMessage(payload = {}) {
       const position = getQueuePosition(payload);
-      if (position) return `排队第${position}位，请勿离开页面`;
+      if (position) return `请耐心等待，您是第${position}位，关闭页面重新排队。`;
       return payload.message || '排队等待，请勿离开页面';
+    }
+
+    function openQueueModal(payload = {}) {
+      const message = getQueueMessage(payload);
+      queueModalMessage.textContent = message;
+      queueModal.classList.add('is-open');
+      queueModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeQueueModal() {
+      queueModal.classList.remove('is-open');
+      queueModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function closeReadyConfirmModal() {
+      clearInterval(readyConfirmTimer);
+      readyConfirmTimer = null;
+      readyConfirmPayload = null;
+      readyConfirmModal.classList.remove('is-open');
+      readyConfirmModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function getConfirmRemainingSeconds(payload = {}) {
+      const expiresAt = Date.parse(payload.confirmExpiresAt || '');
+      if (Number.isFinite(expiresAt)) return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      const remainingMs = Number(payload.confirmRemainingMs || 0);
+      return remainingMs > 0 ? Math.ceil(remainingMs / 1000) : 10;
+    }
+
+    function openReadyConfirmModal(payload = {}) {
+      closeQueueModal();
+      clearInterval(readyConfirmTimer);
+      readyConfirmPayload = payload;
+      const render = () => {
+        const seconds = getConfirmRemainingSeconds(payload);
+        readyConfirmMessage.textContent = seconds > 0
+          ? `已轮到你，请在${seconds}秒内确认开始。`
+          : '确认超时，正在重新排队。';
+        readyConfirmButton.disabled = seconds <= 0;
+        if (seconds <= 0) {
+          clearInterval(readyConfirmTimer);
+          readyConfirmTimer = null;
+        }
+      };
+      render();
+      readyConfirmModal.classList.add('is-open');
+      readyConfirmModal.setAttribute('aria-hidden', 'false');
+      readyConfirmTimer = setInterval(render, 250);
+    }
+
+    function confirmReadyAccount() {
+      if (!readyConfirmPayload || !pendingAccountRequestId) return;
+      const payload = readyConfirmPayload;
+      closeReadyConfirmModal();
+      setIndexPresenceMode('getting');
+      phoneView.textContent = '准备接码';
+      codeView.textContent = '等待接码';
+      setNoticeText('验证码获取中请勿离开页面');
+      publishMqtt(mqttTopics.accountRequest, {
+        type: 'account_confirm',
+        clientId,
+        requestId: payload.requestId || pendingAccountRequestId,
+        taskId: payload.taskId || payload.id || '',
+        activationToken,
+        cardKey: activationPassword,
+        ts: Date.now()
+      }).catch((error) => {
+        console.error(error);
+        showToast(error.message || '确认失败，请等待重新排队');
+      });
     }
 
     function showQueueState(payload = {}) {
       const queueMessage = getQueueMessage(payload);
       clearAccountTimer();
       clearCodeTimers();
+      closeReadyConfirmModal();
+      setIndexPresenceMode('queued');
       phoneView.classList.remove('is-fetched');
       phoneView.dataset.full = '';
       codeView.dataset.full = '';
       phoneView.textContent = '排队等待';
       codeView.textContent = getQueuePosition(payload) ? `第${getQueuePosition(payload)}位` : '等待空位';
       setNoticeText(queueMessage);
+      openQueueModal(payload);
       if (queueMessage !== lastQueueMessage) {
         showToast(queueMessage);
         lastQueueMessage = queueMessage;
@@ -1169,6 +1280,8 @@
       pendingAccountRequestId = '';
       clearAccountTimer();
       clearCodeTimers();
+      closeQueueModal();
+      closeReadyConfirmModal();
       setIndexPresenceMode('open');
       phoneView.classList.remove('is-fetched');
       phoneView.dataset.full = '';
@@ -1213,6 +1326,8 @@
       clearActivationSession();
       clearCodeTimers();
       clearAccountTimer();
+      closeQueueModal();
+      closeReadyConfirmModal();
       pendingAccountRequestId = '';
       setIndexPresenceMode('open');
       phoneView.classList.remove('is-fetched');
@@ -1437,7 +1552,7 @@
     }
 
     function normalizeIndexPresenceMode(mode) {
-      return ['open', 'getting', 'waiting_code', 'code_received', 'offline'].includes(mode) ? mode : 'open';
+      return ['open', 'queued', 'getting', 'waiting_code', 'code_received', 'offline'].includes(mode) ? mode : 'open';
     }
 
     function indexPresencePayload(mode = indexPresenceMode) {
@@ -1445,10 +1560,11 @@
       return {
         type: 'index_presence',
         clientId,
+        pageId,
         cardKey: activationPassword,
         requestId: pendingAccountRequestId,
         mode: nextMode,
-        getting: nextMode === 'getting' || nextMode === 'waiting_code',
+        getting: nextMode === 'queued' || nextMode === 'getting' || nextMode === 'waiting_code',
         activated: isActivated,
         visibility: document.visibilityState || 'visible',
         page: location.href,
@@ -1785,6 +1901,8 @@
     }
 
     function renderAccount(item) {
+      closeQueueModal();
+      closeReadyConfirmModal();
       const loginValue = formatSvipPhone(item.phone);
       phoneView.textContent = loginValue;
       phoneView.dataset.full = loginValue;
@@ -1844,7 +1962,7 @@
         activationToken,
         activationExpiresAt,
         queueSupported: true,
-        maxConcurrency: 20,
+        maxConcurrency: 1,
         ts: Date.now()
       }).then(() => {
         accountTimeoutTimer = setTimeout(() => {
@@ -1934,13 +2052,43 @@
       if (payload.requestId && payload.requestId !== pendingAccountRequestId) return;
       const reason = payload.reason || '';
       const message = payload.message || '';
+      const readyConfirm = payload.confirmRequired === true ||
+        payload.status === 'awaiting_confirm' ||
+        reason === 'ready_confirm';
+      if (readyConfirm) {
+        clearAccountTimer();
+        clearCodeTimers();
+        setIndexPresenceMode('queued');
+        phoneView.classList.remove('is-fetched');
+        phoneView.dataset.full = '';
+        codeView.dataset.full = '';
+        phoneView.textContent = '轮到你了';
+        codeView.textContent = '请确认';
+        setNoticeText('准备接码，请在10秒内确认');
+        openReadyConfirmModal(payload);
+        return;
+      }
       const queued = payload.queued === true ||
         payload.status === 'queued' ||
+        payload.status === 'queue_offline' ||
         reason === 'queued' ||
         reason === 'queue_busy' ||
         message.includes('排队');
       if (queued) {
         showQueueState(payload);
+        return;
+      }
+      if (reason === 'confirmed' || payload.status === 'running') {
+        clearAccountTimer();
+        closeQueueModal();
+        closeReadyConfirmModal();
+        setIndexPresenceMode('getting');
+        phoneView.classList.remove('is-fetched');
+        phoneView.dataset.full = '';
+        codeView.dataset.full = '';
+        phoneView.textContent = '接码中';
+        codeView.textContent = '等待验证码';
+        setNoticeText(payload.message || '验证码获取中请勿离开页面');
         return;
       }
       clearAccountTimer();
@@ -2012,6 +2160,8 @@
       }
 
       renderAccount({ phone, code });
+      closeQueueModal();
+      closeReadyConfirmModal();
     }
 
     function handleCodeResult(payload) {
@@ -2046,6 +2196,8 @@
         showToast(payload.message || '未收到验证码');
         return;
       }
+      closeQueueModal();
+      closeReadyConfirmModal();
       showCode(code, payload);
       pendingAccountRequestId = '';
     }
@@ -2082,8 +2234,16 @@
       }
       if (topic === mqttTopics.status) {
         const isOwnRequest = Boolean(pendingAccountRequestId) && (!payload.requestId || payload.requestId === pendingAccountRequestId);
+        const isReadyConfirm = payload.confirmRequired === true ||
+          payload.status === 'awaiting_confirm' ||
+          payload.reason === 'ready_confirm';
+        if (isOwnRequest && isReadyConfirm) {
+          handleAccountResult(payload);
+          return;
+        }
         const isQueued = payload.queued === true ||
           payload.status === 'queued' ||
+          payload.status === 'queue_offline' ||
           payload.reason === 'queued' ||
           payload.reason === 'queue_busy' ||
           payload.queuePosition ||
@@ -2131,16 +2291,15 @@
     });
     preflightConfirm.addEventListener('click', () => resolveGetPreflight(true));
     preflightCancel.addEventListener('click', () => resolveGetPreflight(false));
+    queueModalOk.addEventListener('click', closeQueueModal);
+    readyConfirmButton.addEventListener('click', confirmReadyAccount);
     supportButton?.addEventListener('click', requestManualSupport);
-    preflightModal.addEventListener('click', (event) => {
-      if (event.target === preflightModal) resolveGetPreflight(false);
+    queueModal.addEventListener('click', (event) => {
+      if (event.target === queueModal) closeQueueModal();
     });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && activationModal.classList.contains('is-open')) {
         closeActivationModal();
-      }
-      if (event.key === 'Escape' && preflightModal.classList.contains('is-open')) {
-        resolveGetPreflight(false);
       }
     });
 
@@ -2160,6 +2319,7 @@
     renderCardKeyNotice();
     restoreActivationSession();
     autoActivateFromUrl();
+    setTimeout(() => requestGetPreflight().catch(() => {}), 120);
     if (activationPassword) {
       ensureMqttConnected().catch((error) => console.error(error));
     }
