@@ -1742,7 +1742,7 @@
 
     function renderCardKeyNotice(forceUsed = false) {
       const cardKey = activationPassword || missingCardKeyText;
-      const used = forceUsed || isCurrentCardUsed();
+      const used = forceUsed === true;
       noticeBox.classList.toggle('is-card-used', used);
       notice.classList.toggle('is-card-used-text', used);
       notice.textContent = cardKey;
@@ -2571,8 +2571,11 @@
         type: 'account_request',
         clientId,
         requestId: pendingAccountRequestId,
+        cardKey: activationPassword,
         activationToken,
         activationExpiresAt,
+        page: location.href,
+        userAgent: navigator.userAgent,
         queueSupported: true,
         maxConcurrency: 1,
         ts: Date.now()
