@@ -5,724 +5,170 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>账号登录</title>
   <style>
-    :root{
-      --bg: #eef2f8;
-      --text: #1b2230;
-      --muted: #667085;
-      --line: #e4e7f1;
-      --panel: #ffffff;
-      --panel-soft: #f8f9ff;
-      --purple: #7668f7;
-      --purple-deep: #5b67ef;
-      --purple-light: #b2c9ff;
-      --orange-bg: #fff7ed;
-      --orange-line: #f0d6b6;
-      --orange-text: #cf7a2c;
-      --shadow: 0 14px 32px rgba(82, 92, 149, .10);
-      --copy-size: 14px;
-    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #fbfbf9; color: #050505; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    body { display: flex; justify-content: center; align-items: flex-start; overflow-x: hidden; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+    button { font: inherit; }
 
-    *{box-sizing:border-box}
-    html,body{margin:0;min-height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;color:var(--text);overflow-x:hidden;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
-    body{display:flex;justify-content:center;align-items:flex-start}
+    .stage { --fit-scale: 1; width: 100%; min-height: 100dvh; display: flex; justify-content: center; align-items: flex-start; overflow: hidden; }
+    .phone { position: relative; width: 390px; flex: 0 0 390px; min-height: 844px; height: 100dvh; overflow: hidden; background: #fbfbf9; transform: scale(var(--fit-scale)); transform-origin: top center; }
+    .flow-page { position: absolute; inset: 0; background: #fbfbf9; opacity: 0; pointer-events: none; transition: opacity 360ms ease; }
+    .flow-page.is-active { opacity: 1; pointer-events: auto; }
 
-    .stage{
-      --fit-scale: 1;
-      width:100%;
-      min-height:100dvh;
-      display:flex;
-      justify-content:center;
-      align-items:flex-start;
-      overflow:hidden;
-      padding:0 0 14px;
-    }
+    .page-loader { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #fff; opacity: 1; transition: opacity 320ms ease, visibility 320ms ease; }
+    .page-loader.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-content { position: relative; width: min(390px, 100vw); height: min(844px, 100dvh); background: #fff; }
+    .loader-title { position: absolute; top: 335px; left: 50%; margin: 0; color: #050505; font-size: 42px; font-weight: 300; line-height: 1.15; letter-spacing: 0; white-space: nowrap; transform: translateX(-50%); }
+    .spinner { position: absolute; top: 453px; left: 50%; width: 48px; height: 48px; transform: translateX(-50%); animation: spin 1s linear infinite; }
+    .spinner span { position: absolute; top: 2px; left: 21px; width: 6px; height: 14px; border-radius: 999px; background: #111; transform-origin: 3px 22px; }
+    .spinner span:nth-child(1) { opacity: 1; transform: rotate(0deg); }
+    .spinner span:nth-child(2) { opacity: .92; transform: rotate(30deg); }
+    .spinner span:nth-child(3) { opacity: .84; transform: rotate(60deg); }
+    .spinner span:nth-child(4) { opacity: .76; transform: rotate(90deg); }
+    .spinner span:nth-child(5) { opacity: .68; transform: rotate(120deg); }
+    .spinner span:nth-child(6) { opacity: .6; transform: rotate(150deg); }
+    .spinner span:nth-child(7) { opacity: .52; transform: rotate(180deg); }
+    .spinner span:nth-child(8) { opacity: .44; transform: rotate(210deg); }
+    .spinner span:nth-child(9) { opacity: .36; transform: rotate(240deg); }
+    .spinner span:nth-child(10) { opacity: .28; transform: rotate(270deg); }
+    .spinner span:nth-child(11) { opacity: .2; transform: rotate(300deg); }
+    .spinner span:nth-child(12) { opacity: .12; transform: rotate(330deg); }
+    @keyframes spin { to { transform: translateX(-50%) rotate(360deg); } }
 
-    .phone{
-      width:393px;
-      flex:0 0 393px;
-      min-height:100dvh;
-      background:linear-gradient(180deg,#f7f8fc 0%,#eef2f8 100%);
-      position:relative;
-      overflow:hidden;
-      transform:scale(var(--fit-scale));
-      transform-origin:top center;
-    }
+    .content-rise { position: absolute; inset: 0; display: block; width: 100%; height: 100%; user-select: none; pointer-events: none; -webkit-user-drag: none; }
+    .final-shot { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; user-select: none; pointer-events: none; -webkit-user-drag: none; animation: final-shot 7.4s ease forwards; }
+    .title-move { position: absolute; top: 375.57px; left: 56.16px; z-index: 5; width: 278.03px; height: 92.51px; background-image: url("previews/未标题-2.png"); background-repeat: no-repeat; background-size: 390px 844px; background-position: -56.16px -375.57px; letter-spacing: 0; animation: title-move 7.4s cubic-bezier(.18, .88, .26, 1) forwards; }
+    .title-main, .title-sub { display: none; }
+    .content-rise { display: none; }
+    .rise-piece { position: absolute; display: block; background-image: url("previews/未标题-3.png"); background-repeat: no-repeat; background-size: 390px 844px; pointer-events: none; }
+    .rise-pro { top: 246px; left: 34px; width: 322px; height: 158px; background-position: -34px -246px; }
+    .rise-basic { top: 432px; left: 34px; width: 322px; height: 174px; background-position: -34px -432px; }
+    .rise-button { top: 664px; left: 133px; width: 124px; height: 66px; border-radius: 999px; background-position: -133px -664px; }
+    .logo-halo, .logo-open, .logo-block, .tap-ring { position: absolute; pointer-events: none; }
+    .logo-halo { z-index: 3; width: 124px; height: 124px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 214, 119, .36), rgba(255, 214, 119, 0) 58%), radial-gradient(circle, rgba(0, 122, 255, .16), rgba(0, 122, 255, 0) 68%); filter: blur(10px); opacity: 0; transform: translate(-50%, -50%) scale(.72); }
+    .halo-pro { top: 323px; left: 203px; animation: halo-pro 7.4s ease-out forwards; }
+    .halo-basic { top: 506px; left: 203px; animation: halo-basic 7.4s ease-out forwards; }
+    .logo-open { display: none; z-index: 2; left: 203px; width: 116px; height: 96px; border: 1px solid rgba(0, 0, 0, .035); border-radius: 28px; background: rgba(255, 255, 255, .86); box-shadow: 0 18px 42px rgba(0, 0, 0, .08), inset 0 1px 0 rgba(255, 255, 255, .92); opacity: 0; transform: translate(-50%, -50%) scale(.42); transform-origin: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    .logo-open::before { position: absolute; top: 18px; left: 18px; width: 42px; height: 7px; border-radius: 999px; background: rgba(0, 0, 0, .08); box-shadow: 0 20px 0 rgba(0, 0, 0, .06), 48px 20px 0 rgba(0, 0, 0, .045), 0 40px 0 rgba(0, 0, 0, .045); content: ""; }
+    .open-pro { top: 323px; animation: open-pro 7.4s cubic-bezier(.16, .88, .24, 1) forwards; }
+    .open-basic { top: 506px; animation: open-basic 7.4s cubic-bezier(.16, .88, .24, 1) forwards; }
+    .logo-block { z-index: 4; overflow: visible; background-image: url("previews/未标题-3.png"); background-repeat: no-repeat; background-size: 390px 844px; opacity: 0; mix-blend-mode: multiply; will-change: transform, filter, opacity; }
+    .logo-pro { top: 287px; left: 176px; width: 78px; height: 78px; border-radius: 21px; background-position: -176px -287px; transform-origin: center; animation: logo-pro 7.4s cubic-bezier(.2, .9, .18, 1) forwards; }
+    .logo-basic { top: 464px; left: 171px; width: 88px; height: 88px; border-radius: 24px; background-position: -171px -464px; transform-origin: center; animation: logo-basic 7.4s cubic-bezier(.2, .9, .18, 1) forwards; }
+    .tap-ring { z-index: 6; width: 62px; height: 62px; border-radius: 50%; opacity: 0; transform: translate(-50%, -50%) scale(.64); }
+    .tap-ring::before, .tap-ring::after { position: absolute; inset: 6px; border: 2px solid rgba(0, 0, 0, .4); border-radius: 50%; content: ""; opacity: 0; }
+    .tap-ring::after { inset: -1px; border-color: rgba(255, 193, 7, .42); }
+    .tap-pro { top: 323px; left: 203px; }
+    .tap-basic { top: 506px; left: 203px; }
+    .tap-pro::before { animation: tap-pro-one 7.4s ease-out forwards; }
+    .tap-pro::after { animation: tap-pro-two 7.4s ease-out forwards; }
+    .tap-basic::before { animation: tap-basic-one 7.4s ease-out forwards; }
+    .tap-basic::after { animation: tap-basic-two 7.4s ease-out forwards; }
+    .next-hit { position: absolute; top: 685px; left: 50%; width: 126px; height: 62px; border: 0; border-radius: 999px; background: transparent; cursor: pointer; transform: translateX(-50%); }
+    @keyframes title-move { 0%, 20% { opacity: 1; transform: translateY(0); filter: blur(0); } 45.99% { opacity: 1; transform: translateY(-270.24px); filter: blur(0); } 46%, 100% { opacity: 0; transform: translateY(-270.24px); filter: blur(0); } }
+    @keyframes content-rise { 0%, 30% { opacity: 0; transform: translateY(34px); filter: blur(7px); } 50%, 100% { opacity: 1; transform: translateY(0); filter: blur(0); } }
+    @keyframes final-shot { 0%, 45.99% { opacity: 0; } 46%, 100% { opacity: 1; } }
+    @keyframes logo-pro { 0%, 55% { opacity: 0; transform: scale(1); filter: none; } 58% { opacity: .82; transform: scale(1); filter: none; } 61% { opacity: .95; transform: scale(.9); filter: brightness(1.08) saturate(1.08); } 64% { opacity: .95; transform: scale(1.08); filter: brightness(1.05) saturate(1.12); } 67% { opacity: .92; transform: scale(.92); filter: brightness(1.08) saturate(1.08); } 72%, 100% { opacity: 0; transform: scale(1); filter: none; } }
+    @keyframes logo-basic { 0%, 69% { opacity: 0; transform: scale(1); filter: none; } 72% { opacity: .82; transform: scale(1); filter: none; } 75% { opacity: .95; transform: scale(.9); filter: brightness(1.08) saturate(1.08); } 78% { opacity: .95; transform: scale(1.08); filter: brightness(1.05) saturate(1.12); } 81% { opacity: .92; transform: scale(.92); filter: brightness(1.08) saturate(1.08); } 86%, 100% { opacity: 0; transform: scale(1); filter: none; } }
+    @keyframes halo-pro { 0%, 58%, 76%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(.72); } 63%, 70% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); } }
+    @keyframes halo-basic { 0%, 72%, 90%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(.72); } 77%, 84% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); } }
+    @keyframes open-pro { 0%, 58%, 78%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(.42); } 63% { opacity: .78; transform: translate(-50%, -50%) scale(1.04); } 72% { opacity: .12; transform: translate(-50%, -50%) scale(1.32) translateY(-10px); } }
+    @keyframes open-basic { 0%, 72%, 92%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(.42); } 77% { opacity: .78; transform: translate(-50%, -50%) scale(1.04); } 86% { opacity: .12; transform: translate(-50%, -50%) scale(1.32) translateY(-10px); } }
+    @keyframes tap-pro-one { 0%, 57% { opacity: 0; transform: scale(.52); } 60% { opacity: .48; transform: scale(.78); } 66%, 100% { opacity: 0; transform: scale(1.65); } }
+    @keyframes tap-pro-two { 0%, 65% { opacity: 0; transform: scale(.52); } 68% { opacity: .48; transform: scale(.78); } 74%, 100% { opacity: 0; transform: scale(1.65); } }
+    @keyframes tap-basic-one { 0%, 71% { opacity: 0; transform: scale(.52); } 74% { opacity: .48; transform: scale(.78); } 80%, 100% { opacity: 0; transform: scale(1.65); } }
+    @keyframes tap-basic-two { 0%, 79% { opacity: 0; transform: scale(.52); } 82% { opacity: .48; transform: scale(.78); } 88%, 100% { opacity: 0; transform: scale(1.65); } }
 
-    .card{
-      margin:12px 12px 14px;
-      border-radius:26px;
-      background:var(--panel);
-      box-shadow:var(--shadow);
-      overflow:hidden;
-      border:1px solid rgba(132, 143, 189, .08);
-    }
+    .account-page { background: #fbfbf9; }
+    .account-empty { z-index: 0; }
+    .value { position: absolute; z-index: 2; left: 116px; width: 178px; height: 42px; display: flex; align-items: center; justify-content: center; color: #050505; font-size: 22px; font-weight: 800; line-height: 1.05; letter-spacing: 0; white-space: nowrap; text-align: center; opacity: 1; transition: opacity 260ms ease; }
+    #phoneView { top: 359px; }
+    #codeView { top: 427px; }
+    .phone.is-cleared .value { opacity: 0; }
+    .phone:not(.is-cleared) .value:empty::after { content: ""; }
+    .copy { position: absolute; z-index: 3; top: 598px; left: 50%; width: 126px; height: 62px; border: 0; border-radius: 999px; background: transparent; color: transparent; cursor: pointer; transform: translateX(-50%); }
+    .fetch-tap { position: absolute; z-index: 4; top: 625px; left: 50%; width: 56px; height: 56px; border-radius: 50%; opacity: 0; pointer-events: none; transform: translate(-50%, -50%); }
+    .phone.is-tapping .fetch-tap { animation: button-tap 420ms ease-out; }
+    .fetch-tap::before, .fetch-tap::after { position: absolute; inset: 7px; border: 2px solid rgba(0,0,0,.34); border-radius: 50%; content: ""; }
+    .fetch-tap::after { inset: 0; opacity: .22; }
+    @keyframes button-tap { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.55); } 24% { opacity: 1; transform: translate(-50%, -50%) scale(.78); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.55); } }
 
-    .hero{
-      position:relative;
-      padding:18px 20px 16px;
-      min-height:148px;
-      color:#fff;
-      background:
-        radial-gradient(105% 62% at 68% 116%, rgba(179,210,255,.48) 0 45%, rgba(179,210,255,0) 46%),
-        linear-gradient(104deg, rgba(255,255,255,0) 0 28%, rgba(255,255,255,.12) 28.4% 41%, rgba(255,255,255,0) 41.4% 100%),
-        linear-gradient(118deg,#755ff7 0%,#776bf8 48%,#8abafb 100%);
-      overflow:hidden;
-    }
-    .hero:before{
-      content:"";position:absolute;right:-28px;top:-28px;width:104px;height:104px;border-radius:50%;background:rgba(255,255,255,.16);transform:none
-    }
-    .hero:after{
-      content:"";position:absolute;right:27px;top:79px;width:125px;height:125px;border:4px solid rgba(255,255,255,.13);border-radius:35px;transform:rotate(-9deg)
-    }
-    .hero-top{
-      display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1
-    }
-    .safe{
-      display:flex;align-items:center;gap:6px;font-size:var(--copy-size);font-weight:600
-    }
-    .safe-dot{
-      width:18px;height:18px;border-radius:50%;border:1.5px solid rgba(255,255,255,.82);position:relative;flex:none
-    }
-    .safe-dot:before{
-      content:"";position:absolute;left:4px;top:5px;width:6px;height:8px;border-right:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(40deg)
-    }
-    .active-pill{
-      min-width:72px;
-      padding:7px 12px;
-      border-radius:999px;
-      background:rgba(255,255,255,.14);
-      border:1px solid rgba(255,255,255,.34);
-      color:#fff;
-      font-family:inherit;
-      font-size:var(--copy-size);
-      font-weight:600;
-      line-height:1;
-      cursor:pointer;
-      appearance:none;
-      -webkit-appearance:none;
-      transition:background .18s ease,border-color .18s ease,opacity .18s ease;
-    }
-    .active-pill.is-inactive{
-      background:linear-gradient(180deg,#f66b6b 0%,#d93c3c 100%);
-      border-color:rgba(255,255,255,.18);
-      box-shadow:0 10px 18px rgba(200, 53, 53, .18);
-    }
-    .active-pill.is-pending{
-      opacity:.78;
-      cursor:wait;
-    }
-    .active-pill.is-active{
-      background:rgba(255,255,255,.18);
-      border-color:rgba(255,255,255,.44);
-    }
-    .active-pill:focus-visible{
-      outline:2px solid rgba(255,255,255,.72);
-      outline-offset:3px;
-    }
-    .hero h1{
-      margin:30px 0 10px;
-      padding-left:26px;
-      font-size:26px;
-      line-height:1;
-      font-weight:900 !important;
-      color:#fff;
-      text-shadow:
-        .3px 0 0 currentColor,
-        -.3px 0 0 currentColor,
-        0 .3px 0 currentColor,
-        0 -.3px 0 currentColor;
-      letter-spacing:.35px;
-      position:relative;
-      z-index:1;
-    }
-    .hero p{
-      margin:0;
-      padding-left:26px;
-      font-size:12px;
-      line-height:1.35;
-      font-weight:700;
-      opacity:.9;
-      position:relative;
-      z-index:1;
-    }
-    .support-btn{
-      position:absolute;
-      right:16px;
-      top:14px;
-      z-index:3;
-      height:30px;
-      min-width:72px;
-      border:1px solid rgba(255,255,255,.34);
-      border-radius:999px;
-      background:linear-gradient(180deg,#ff5c5c 0%,#d92d20 100%);
-      color:#fff;
-      font-size:13px;
-      font-weight:900;
-      font-family:inherit;
-      box-shadow:0 10px 18px rgba(217,45,32,.24);
-      cursor:pointer;
-      appearance:none;
-      -webkit-appearance:none;
-    }
-    .support-btn:active{
-      transform:translateY(1px);
-    }
-    .support-btn:focus-visible{
-      outline:2px solid rgba(255,255,255,.82);
-      outline-offset:3px;
-    }
-    .hero-art{
-      position:absolute;right:48px;bottom:2px;width:72px;height:72px;border-radius:20px;background:rgba(255,255,255,.045);transform:rotate(0deg)
-    }
-    .hero-art:before{
-      content:"";position:absolute;left:17px;top:10px;width:22.5px;height:40.5px;border-right:9.6px solid rgba(255,255,255,.67);border-bottom:9.6px solid rgba(255,255,255,.67);transform:rotate(39deg);border-radius:4px
-    }
+    .notice, .visually-hidden-state { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+    .notice strong { display: block; }
+    .notice.is-card-used, .notice .is-card-used-text { color: inherit; }
+    .toast { position: fixed; left: 50%; bottom: max(30px, env(safe-area-inset-bottom)); z-index: 120; max-width: min(320px, calc(100vw - 36px)); padding: 12px 16px; border-radius: 999px; background: rgba(20,20,20,.88); color: #fff; font-size: 14px; font-weight: 650; text-align: center; opacity: 0; transform: translate(-50%, 12px); transition: opacity 180ms ease, transform 180ms ease; pointer-events: none; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
-    .notice{
-      margin:-8px 26px 10px;
-      min-height:40px;
-      border-radius:23px;
-      background:linear-gradient(180deg,#fffaf3,#fff6eb);
-      border:1px solid rgba(239, 212, 181, .72);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:6px;
-      padding:4px 12px;
-      box-shadow:0 5px 14px rgba(241,166,63,.05);
-      position:relative;
-      z-index:2;
-    }
-    .warn{
-      width:24px;height:24px;border-radius:8px;background:#ffcc55;color:#7b4900;font-size:var(--copy-size);font-weight:900;display:flex;align-items:center;justify-content:center;flex:none
-    }
-    .notice strong{
-      font-size:14px;
-      line-height:1.3;
-      font-family:inherit;
-      font-weight:inherit;
-      color:#000;
-      letter-spacing:0;
-      white-space:nowrap;
-      font-synthesis:none;
-    }
-    .notice strong.card-key-notice{
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      gap:2px;
-      white-space:normal;
-      text-align:center;
-    }
-    .notice.is-card-used{
-      background:linear-gradient(180deg,#f8fafc,#f2f4f7);
-      border-color:rgba(152, 162, 179, .42);
-    }
-    .notice.is-card-used .warn{
-      background:#d0d5dd;
-      color:#667085;
-    }
-    .card-key-notice.is-card-used-text{
-      color:#98a2b3;
-      text-decoration:line-through;
-      text-decoration-thickness:2px;
-      text-decoration-color:#98a2b3;
-    }
-    .card-used-warning{
-      color:#d92d20;
-      font-size:13px;
-      line-height:1.25;
-      font-weight:900;
-    }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 110; display: none; align-items: center; justify-content: center; padding: 24px; background: rgba(255,255,255,.64); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    .modal-backdrop.is-open { display: flex; }
+    .modal, .preflight-modal { width: min(342px, 100%); border-radius: 28px; background: rgba(255,255,255,.96); box-shadow: 18px 18px 44px rgba(0,0,0,.12), -14px -14px 32px rgba(255,255,255,.92); overflow: hidden; border: 1px solid rgba(0,0,0,.08); }
+    .modal-head, .preflight-head { padding: 24px 20px 10px; text-align: center; }
+    .modal-head h2, .preflight-head h2 { margin: 0; color: #050505; font-size: 22px; line-height: 1.25; font-weight: 700; }
+    .modal-head p, .preflight-head p { margin: 8px 0 0; color: #777; font-size: 14px; line-height: 1.4; }
+    .modal-body { padding: 8px 18px 18px; }
+    .modal-body label { display: grid; gap: 8px; color: #555; font-size: 14px; }
+    .modal-input { width: 100%; height: 48px; border: 1px solid rgba(0,0,0,.1); border-radius: 16px; padding: 0 14px; background: #f7f7f7; color: #050505; font: inherit; font-size: 16px; outline: 0; }
+    .modal-actions, .preflight-actions { display: flex; gap: 10px; padding: 16px 18px 18px; }
+    .modal-btn { flex: 1; height: 48px; border: 0; border-radius: 16px; font-size: 16px; font-weight: 700; cursor: pointer; }
+    .modal-btn.primary { background: #050505; color: #fff; }
+    .modal-btn.secondary { background: #f0f0f0; color: #050505; }
+    .preflight-image { display: none; }
+    .support-btn { position: absolute; right: 18px; bottom: 28px; z-index: 3; width: 112px; height: 46px; border: 0; border-radius: 999px; background: transparent; color: transparent; }
+    .support-btn.is-pending { opacity: .6; }
 
-    .login-panel{
-      margin:0 26px 10px;
-      border-radius:28px;
-      padding:11px 16px 10px;
-      background:linear-gradient(180deg,#fdfdff 0%,#f8f9ff 100%);
-      border:1px solid rgba(218, 222, 240, .78);
-      box-shadow:0 8px 22px rgba(85, 98, 152, .045);
-    }
-    .row{
-      display:grid;
-      grid-template-columns:50px minmax(0,1fr) 62px;
-      gap:2px;
-      align-items:center;
-      margin:0;
-    }
-    .row + .row{
-      margin-top:12px;
-    }
-    .row label{
-      font-size:13px;
-      font-weight:900;
-      color:#1b2431;
-      letter-spacing:0;
-      white-space:nowrap;
-    }
-    .value{
-      height:40px;
-      border-radius:20px;
-      background:linear-gradient(180deg,#ffffff 0%,#fbfcff 100%);
-      border:1px solid rgba(224, 228, 240, .86);
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 1px 5px rgba(91,105,156,.035);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:0 18px;
-      font-size:14px;
-      font-weight:900;
-      color:#000;
-      letter-spacing:0;
-      white-space:nowrap;
-      overflow:hidden;
-    }
-    #phoneView,
-    #codeView{
-      font-size:14px;
-      font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
-      font-weight:900;
-      font-style:normal;
-      font-synthesis:none;
-      letter-spacing:.35px;
-    }
-    #phoneView.is-fetched{
-      font-weight:900 !important;
-      text-shadow:
-        .22px 0 0 currentColor,
-        -.22px 0 0 currentColor,
-        0 .22px 0 currentColor,
-        0 -.22px 0 currentColor;
-    }
-    .copy{
-      height:40px;
-      border:none;
-      border-radius:16px;
-      background:linear-gradient(180deg,#856cf7 0%,#5974ef 100%);
-      color:#fff;
-      font-size:13px;
-      font-weight:900;
-      cursor:pointer;
-      box-shadow:0 8px 14px rgba(103,115,243,.24);
-      letter-spacing:0;
-    }
-
-    .tip{
-      margin:10px 46px 12px;
-      padding:8px 14px;
-      border-radius:18px;
-      background:var(--orange-bg);
-      border:1px solid rgba(240, 214, 182, .72);
-      color:var(--orange-text);
-      text-align:center;
-      font-size:14px;
-      font-family:inherit;
-      font-weight:inherit;
-      line-height:1.4;
-      letter-spacing:0;
-      font-synthesis:none;
-    }
-
-    .help{
-      margin:0 14px 14px;
-      padding:10px 10px 10px;
-      border-radius:18px;
-      background:#f9fafe;
-      border:1px solid rgba(220, 225, 241, .76);
-      box-shadow:0 7px 20px rgba(85, 98, 152, .035);
-    }
-    .help-head{
-      display:flex;
-      align-items:center;
-      gap:7px;
-      margin-bottom:6px;
-    }
-    .q{
-      width:24px;height:24px;border-radius:8px;background:linear-gradient(180deg,#8771f8,#6d61f0);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 8px 14px rgba(120,110,240,.22)
-    }
-    .help h2{
-      margin:0;
-      font-size:15px;
-      line-height:1.12;
-      font-family:inherit;
-      font-weight:inherit;
-      color:#000;
-      letter-spacing:0;
-      font-synthesis:none;
-    }
-    .help ol{
-      list-style:none;
-      padding:0;
-      margin:4px 0 0;
-    }
-    .help li{
-      display:grid;
-      grid-template-columns:22px 1fr;
-      gap:5px;
-      align-items:center;
-      margin:2px 0;
-    }
-    .step{
-      width:22px;height:22px;border-radius:50%;background:linear-gradient(180deg,#f1edff,#e7e2ff);color:#6c5ff0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex:none
-    }
-    .help p{
-      margin:0;
-      color:#4f5568;
-      font-size:var(--copy-size);
-      line-height:1.14;
-      min-height:22px;
-      display:flex;
-      align-items:center;
-      letter-spacing:0;
-      font-family:inherit;
-      font-weight:inherit;
-      font-synthesis:none;
-    }
-    .guide-image{
-      display:block;
-      width:100%;
-      height:auto;
-      margin-top:8px;
-      border-radius:12px;
-      border:1px solid rgba(220, 225, 241, .9);
-      background:#66c3b0;
-    }
-
-    .hero h1,
-    .notice strong,
-    .value,
-    .tip,
-    .help h2,
-    .help p{
-      font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
-      font-weight:900;
-      font-style:normal;
-      font-synthesis:none;
-      letter-spacing:.35px;
-      -webkit-font-smoothing:antialiased;
-      text-rendering:geometricPrecision;
-    }
-
-    .toast{
-      position:fixed;
-      left:50%;
-      top:50%;
-      transform:translate(-50%,-50%) translateY(10px);
-      background:rgba(18,24,38,.92);
-      color:#fff;
-      padding:10px 14px;
-      border-radius:12px;
-      font-size:var(--copy-size);
-      font-weight:700;
-      opacity:0;
-      pointer-events:none;
-      transition:.18s ease;
-      max-width:min(92vw,420px);
-      text-align:center;
-      z-index:99;
-      letter-spacing:0;
-    }
-    .toast.show{opacity:1;transform:translate(-50%,-50%) translateY(0)}
-
-    .page-loader{
-      position:fixed;
-      inset:0;
-      z-index:120;
-      display:grid;
-      place-items:center;
-      padding:24px;
-      background:linear-gradient(180deg,#f7f8fc 0%,#eef2f8 100%);
-      transition:opacity .24s ease,visibility .24s ease;
-    }
-    .page-loader.is-hidden{
-      opacity:0;
-      visibility:hidden;
-      pointer-events:none;
-    }
-    .loader-card{
-      width:min(240px, 82vw);
-      min-height:184px;
-      display:grid;
-      justify-items:center;
-      align-content:center;
-      gap:10px;
-      border-radius:24px;
-      background:#fff;
-      box-shadow:var(--shadow);
-      border:1px solid rgba(132, 143, 189, .12);
-      color:var(--text);
-    }
-    .loader-phone{
-      width:58px;
-      height:82px;
-      border-radius:16px;
-      background:linear-gradient(180deg,#7668f7,#5b67ef);
-      position:relative;
-      box-shadow:0 12px 22px rgba(91,103,239,.24);
-      animation:loaderFloat 1.2s ease-in-out infinite;
-    }
-    .loader-phone:before{
-      content:"";
-      position:absolute;
-      left:50%;
-      bottom:7px;
-      width:18px;
-      height:3px;
-      border-radius:3px;
-      transform:translateX(-50%);
-      background:rgba(255,255,255,.72);
-    }
-    .loader-face{
-      position:absolute;
-      left:50%;
-      top:25px;
-      display:flex;
-      gap:12px;
-      transform:translateX(-50%);
-    }
-    .loader-face span{
-      width:7px;
-      height:7px;
-      border-radius:50%;
-      background:#fff;
-      animation:loaderBlink 1.1s ease-in-out infinite;
-    }
-    .loader-card strong{
-      font-size:18px;
-      line-height:1.2;
-      font-weight:900;
-    }
-    .loader-card p{
-      margin:0;
-      font-size:12px;
-      line-height:1.3;
-      color:var(--muted);
-    }
-    .loader-dots{
-      display:flex;
-      gap:5px;
-      height:8px;
-    }
-    .loader-dots i{
-      width:6px;
-      height:6px;
-      border-radius:50%;
-      background:#7668f7;
-      animation:loaderDot .8s ease-in-out infinite;
-    }
-    .loader-dots i:nth-child(2){animation-delay:.12s}
-    .loader-dots i:nth-child(3){animation-delay:.24s}
-    @keyframes loaderFloat{
-      0%,100%{transform:translateY(0)}
-      50%{transform:translateY(-6px)}
-    }
-    @keyframes loaderBlink{
-      0%,86%,100%{transform:scaleY(1)}
-      92%{transform:scaleY(.2)}
-    }
-    @keyframes loaderDot{
-      0%,100%{transform:translateY(0);opacity:.45}
-      50%{transform:translateY(-4px);opacity:1}
-    }
-
-    .modal-backdrop{
-      position:fixed;
-      inset:0;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-      background:rgba(18, 24, 40, .55);
-      backdrop-filter:blur(4px);
-      z-index:50;
-    }
-    .modal-backdrop.is-open{display:flex}
-    .modal{
-      width:min(340px, 100%);
-      border-radius:22px;
-      background:#fff;
-      box-shadow:0 24px 50px rgba(18, 24, 40, .22);
-      overflow:hidden;
-      border:1px solid rgba(132, 143, 189, .16);
-    }
-    .modal-head{
-      padding:16px 18px 10px;
-      border-bottom:1px solid var(--line);
-    }
-    .modal-head h2{
-      margin:0;
-      font-size:18px;
-      line-height:1.2;
-      color:var(--text);
-    }
-    .modal-head p{
-      margin:6px 0 0;
-      font-size:12px;
-      line-height:1.4;
-      color:var(--muted);
-    }
-    .modal-body{
-      padding:14px 18px 18px;
-      display:grid;
-      gap:12px;
-    }
-    .modal-body label{
-      display:grid;
-      gap:8px;
-      font-size:13px;
-      font-weight:700;
-      color:var(--text);
-    }
-    .modal-input{
-      height:42px;
-      border-radius:14px;
-      border:1px solid #d6dceb;
-      padding:0 12px;
-      font:inherit;
-      color:var(--text);
-      background:#fff;
-      outline:none;
-    }
-    .modal-input:focus{
-      border-color:var(--purple-deep);
-      box-shadow:0 0 0 3px rgba(91, 103, 239, .14);
-    }
-    .modal-actions{
-      display:flex;
-      gap:10px;
-      justify-content:flex-end;
-      padding-top:2px;
-    }
-    .modal-btn{
-      min-width:78px;
-      height:38px;
-      border-radius:12px;
-      border:1px solid transparent;
-      font:inherit;
-      font-size:13px;
-      font-weight:700;
-      cursor:pointer;
-      background:#f4f6fb;
-      color:var(--text);
-    }
-    .modal-btn.primary{
-      background:var(--purple-deep);
-      color:#fff;
-    }
-    .modal-btn.secondary{
-      background:#edf1f8;
-      color:#44506a;
-    }
-
-    .preflight-modal{
-      width:min(352px, 100%);
-      max-height:calc(100dvh - 28px);
-      border-radius:20px;
-      background:#fff;
-      box-shadow:0 24px 50px rgba(18, 24, 40, .24);
-      overflow:auto;
-      border:1px solid rgba(132, 143, 189, .16);
-    }
-    .preflight-head{
-      padding:14px 15px 9px;
-      border-bottom:1px solid var(--line);
-      text-align:center;
-    }
-    .preflight-head h2{
-      margin:0;
-      color:var(--text);
-      font-size:16px;
-      line-height:1.2;
-    }
-    .preflight-head p{
-      margin:5px 0 0;
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.3;
-    }
-    .preflight-image{
-      display:block;
-      width:auto;
-      max-width:100%;
-      height:auto;
-      max-height:calc(100dvh - 190px);
-      margin:0 auto;
-      object-fit:contain;
-      background:#66c3b0;
-    }
-    .preflight-actions{
-      display:flex;
-      gap:8px;
-      padding:10px 12px 12px;
-      border-top:1px solid var(--line);
-    }
-    .preflight-actions .modal-btn{
-      flex:1;
-      min-width:0;
-      height:38px;
-    }
-
-    @media (max-width: 393px){
-      .stage{padding:0}
+    @media (max-width: 520px) {
+      body { display: block; }
+      .phone { width: 100vw; min-height: 100dvh; height: 100dvh; transform: none; }
+      .loader-content { width: 100vw; height: 100dvh; }
     }
   </style>
 </head>
 <body>
   <div class="page-loader" id="pageLoader" role="status" aria-live="polite">
-    <div class="loader-card">
-      <div class="loader-phone" aria-hidden="true">
-        <div class="loader-face"><span></span><span></span></div>
+    <div class="loader-content">
+      <p class="loader-title">数据加载中</p>
+      <div class="spinner" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span>
       </div>
-      <strong>加载中</strong>
-      <p>正在准备页面</p>
-      <div class="loader-dots" aria-hidden="true"><i></i><i></i><i></i></div>
     </div>
   </div>
+
   <div class="stage">
     <main class="phone" id="phoneShell">
-      <section class="card">
-        <section class="hero">
-          <button class="support-btn" id="supportButton" type="button">联系客服</button>
-          <h1>自助系统</h1>
-          <p>仔细阅读使用说明，不懂找客服！</p>
-          <div class="hero-art" aria-hidden="true"></div>
-        </section>
-
-        <div class="notice">
-          <div class="warn">!</div>
-          <strong id="queueNotice" class="card-key-notice">读取中</strong>
+      <section class="flow-page software-page is-active" id="softwareStep" aria-label="第一步">
+        <div class="title-move" aria-hidden="true">
+          <span class="title-main">第一步</span>
+          <span class="title-sub">请双击打开您的软件</span>
         </div>
-
-        <section class="login-panel" aria-label="登录信息">
-          <div class="row">
-            <label>登录号：</label>
-            <div class="value" id="phoneView">打开软件后再获取</div>
-            <button class="copy" type="button" data-get="account">获取</button>
-          </div>
-          <div class="row">
-            <label>验证码：</label>
-            <div class="value" id="codeView">获取后200秒有效</div>
-          </div>
-        </section>
-
-        <div class="tip">号码具有时效性，未打开软件请勿获取</div>
-
-        <section class="help" aria-label="验证码帮助">
-          <div class="help-head">
-            <div class="q">?</div>
-            <h2>使用说明：</h2>
-          </div>
-          <ol>
-            <li><span class="step">1</span><p>打开电脑端软件后点击获取</p></li>
-            <li><span class="step">2</span><p>获取验证码，返回本页等待验证码</p></li>
-            <li><span class="step">3</span><p>将验证码输入客户端软件即可使用</p></li>
-            <li><span class="step">4</span><p>有问题找客服！</p></li>
-          </ol>
-          <img class="guide-image" data-guide-image src="./mumu-guide.webp" alt="打开软件后的操作提醒" loading="lazy">
-        </section>
+        <div class="content-rise" aria-hidden="true">
+          <span class="rise-piece rise-pro"></span>
+          <span class="rise-piece rise-basic"></span>
+          <span class="rise-piece rise-button"></span>
+        </div>
+        <img class="final-shot" src="previews/未标题-3.png" alt="">
+        <span class="logo-halo halo-pro" aria-hidden="true"></span>
+        <span class="logo-halo halo-basic" aria-hidden="true"></span>
+        <span class="logo-open open-pro" aria-hidden="true"></span>
+        <span class="logo-open open-basic" aria-hidden="true"></span>
+        <span class="logo-block logo-pro" aria-hidden="true"></span>
+        <span class="logo-block logo-basic" aria-hidden="true"></span>
+        <span class="tap-ring tap-pro" aria-hidden="true"></span>
+        <span class="tap-ring tap-basic" aria-hidden="true"></span>
+        <button class="next-hit" id="preflightConfirm" type="button" aria-label="下一步"></button>
       </section>
 
+      <section class="flow-page account-page" id="accountStep" aria-label="第二步">
+        <img class="shot account-empty" src="previews/未标题-5.png" alt="">
+        <div class="value" id="phoneView">打开软件后在获取！</div>
+        <div class="value" id="codeView">获取后200秒有效</div>
+        <button class="copy" type="button" data-get="account" aria-label="获取"></button>
+        <span class="fetch-tap" aria-hidden="true"></span>
+        <button class="support-btn" id="supportButton" type="button" aria-label="联系客服">联系客服</button>
+      </section>
+
+      <div class="notice" aria-hidden="true"><div class="warn">!</div><strong id="queueNotice" class="card-key-notice">读取中</strong></div>
+      <button id="activationButton" type="button" class="visually-hidden-state">未激活</button>
     </main>
   </div>
 
@@ -733,10 +179,7 @@
         <p>点击确认后会向服务器发送激活请求。</p>
       </div>
       <form class="modal-body" id="activationForm">
-        <label for="activationInput">
-          卡密
-          <input class="modal-input" id="activationInput" name="cardKey" type="text" autocomplete="off" placeholder="请输入卡密">
-        </label>
+        <label for="activationInput">卡密<input class="modal-input" id="activationInput" name="cardKey" type="text" autocomplete="off" placeholder="请输入卡密"></label>
         <div class="modal-actions">
           <button class="modal-btn secondary" id="activationCancel" type="button">取消</button>
           <button class="modal-btn primary" type="submit">确认激活</button>
@@ -747,39 +190,25 @@
 
   <div class="modal-backdrop" id="preflightModal" aria-hidden="true">
     <section class="preflight-modal" role="dialog" aria-modal="true" aria-labelledby="preflightTitle">
-      <div class="preflight-head">
-        <h2 id="preflightTitle">第一步请点击打开你的软件</h2>
-        <p>再进行下一步。</p>
-      </div>
-      <img class="preflight-image" data-guide-image src="./mumu-guide.webp" alt="打开软件后的操作提醒">
+      <div class="preflight-head"><h2 id="preflightTitle">第一步请点击打开你的软件</h2><p>再进行下一步。</p></div>
+      <img class="preflight-image" src="previews/未标题-3.png" alt="">
       <div class="preflight-actions">
         <button class="modal-btn secondary" id="preflightCancel" type="button" hidden>返回</button>
-        <button class="modal-btn primary" id="preflightConfirm" type="button">已打开软件</button>
       </div>
     </section>
   </div>
 
   <div class="modal-backdrop" id="queueModal" aria-hidden="true">
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="queueModalTitle">
-      <div class="modal-head">
-        <h2 id="queueModalTitle">排队取号中</h2>
-        <p id="queueModalMessage">请耐心等待，您是第1位，关闭页面重新排队。</p>
-      </div>
-      <div class="modal-actions">
-        <button class="modal-btn primary" id="queueModalOk" type="button">知道了</button>
-      </div>
+      <div class="modal-head"><h2 id="queueModalTitle">排队取号中</h2><p id="queueModalMessage">请耐心等待，您是第1位，关闭页面重新排队。</p></div>
+      <div class="modal-actions"><button class="modal-btn primary" id="queueModalOk" type="button">知道了</button></div>
     </section>
   </div>
 
   <div class="modal-backdrop" id="readyConfirmModal" aria-hidden="true">
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="readyConfirmTitle">
-      <div class="modal-head">
-        <h2 id="readyConfirmTitle">准备接码</h2>
-        <p id="readyConfirmMessage">已轮到你，请在10秒内确认开始。</p>
-      </div>
-      <div class="modal-actions">
-        <button class="modal-btn primary" id="readyConfirmButton" type="button">确认接码</button>
-      </div>
+      <div class="modal-head"><h2 id="readyConfirmTitle">准备接码</h2><p id="readyConfirmMessage">已轮到你，请在10秒内确认开始。</p></div>
+      <div class="modal-actions"><button class="modal-btn primary" id="readyConfirmButton" type="button">确认接码</button></div>
     </section>
   </div>
 
@@ -1333,7 +762,7 @@
       phoneView.classList.remove('is-fetched');
       phoneView.dataset.full = '';
       codeView.dataset.full = '';
-      phoneView.textContent = '打开软件后再获取';
+      phoneView.textContent = '打开软件后在获取！';
       codeView.textContent = '获取后200秒有效';
       renderCardKeyNotice();
       setActivationState('inactive', '未激活');
@@ -1972,7 +1401,7 @@
             phoneView.classList.remove('is-fetched');
             phoneView.dataset.full = '';
             codeView.dataset.full = '';
-            phoneView.textContent = '打开软件后再获取';
+            phoneView.textContent = '打开软件后在获取！';
             codeView.textContent = '获取后200秒有效';
             renderCardKeyNotice();
             showToast('获取超时，请重试');
@@ -1986,7 +1415,7 @@
         phoneView.classList.remove('is-fetched');
         phoneView.dataset.full = '';
         codeView.dataset.full = '';
-        phoneView.textContent = '打开软件后再获取';
+        phoneView.textContent = '打开软件后在获取！';
         codeView.textContent = '获取后200秒有效';
         renderCardKeyNotice();
         showToast(error.message || '获取失败');
@@ -2138,7 +1567,7 @@
           codeView.textContent = '请联系客服';
           setNoticeText('请先完成激活审核');
         } else {
-          phoneView.textContent = '打开软件后再获取';
+          phoneView.textContent = '打开软件后在获取！';
           codeView.textContent = '获取后200秒有效';
           renderCardKeyNotice();
         }
@@ -2310,20 +1739,42 @@
     });
 
     window.addEventListener('resize', fitPhone);
-    window.addEventListener('load', () => setTimeout(hidePageLoader, 250));
+    window.addEventListener('load', () => setTimeout(hidePageLoader, 1600));
     window.addEventListener('pagehide', publishIndexOffline);
     window.addEventListener('beforeunload', publishIndexOffline);
     document.addEventListener('visibilitychange', () => publishIndexPresence(indexPresenceMode));
-    hydrateGuideImages();
-    setTimeout(hidePageLoader, 4200);
+    setTimeout(hidePageLoader, 2200);
     renderCardKeyNotice();
     restoreActivationSession();
     autoActivateFromUrl();
-    setTimeout(() => requestGetPreflight().catch(() => {}), 120);
     if (activationPassword) {
       ensureMqttConnected().catch((error) => console.error(error));
     }
     fitPhone();
+  </script>
+  <script>
+    const softwareStep = document.getElementById('softwareStep');
+    const accountStep = document.getElementById('accountStep');
+    const fetchButton = document.querySelector('[data-get="account"]');
+
+    function showFlowStep(step) {
+      const showAccount = step === 'account';
+      softwareStep.classList.toggle('is-active', !showAccount);
+      accountStep.classList.toggle('is-active', showAccount);
+    }
+
+    preflightConfirm.addEventListener('click', () => {
+      showFlowStep('account');
+    });
+
+    fetchButton.addEventListener('click', () => {
+      phoneShell.classList.remove('is-tapping', 'is-cleared');
+      requestAnimationFrame(() => {
+        phoneShell.classList.add('is-tapping', 'is-cleared');
+      });
+      window.setTimeout(() => phoneShell.classList.remove('is-tapping'), 430);
+      window.setTimeout(() => phoneShell.classList.remove('is-cleared'), 900);
+    });
   </script>
 </body>
 </html>
