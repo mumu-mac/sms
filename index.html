@@ -1292,6 +1292,14 @@
       hidePageLoader();
     }
 
+    function showPageLoaderError(message) {
+      const title = pageLoader?.querySelector('.loader-title');
+      if (title) {
+        title.textContent = message || '素材加载失败';
+        title.style.fontSize = 'calc(var(--app-width) * .064)';
+      }
+    }
+
     function dismissFirstStep() {
       if (firstStepDismissed) return;
       firstStepDismissed = true;
@@ -1315,8 +1323,13 @@
       };
       images.forEach((image) => {
         let settled = false;
+        let failed = false;
         const finishImage = () => {
           if (settled) return;
+          if (failed) {
+            showPageLoaderError('素材加载失败，请刷新');
+            return;
+          }
           settled = true;
           done();
         };
@@ -1335,17 +1348,22 @@
         image.decoding = 'async';
         image.addEventListener('load', finishImage, { once: true });
         image.addEventListener('error', () => {
-          if (!tryNextSource()) finishImage();
+          if (!tryNextSource()) {
+            failed = true;
+            finishImage();
+          }
         });
         if (isGuideImage && !image.getAttribute('src')) image.src = usageGuideImageSources[0];
         if (image.complete) {
           setTimeout(() => {
             if (image.naturalWidth > 0) finishImage();
-            else if (!tryNextSource()) finishImage();
+            else if (!tryNextSource()) {
+              failed = true;
+              finishImage();
+            }
           }, 0);
         }
       });
-      setTimeout(markPageLoaderReady, 900);
     }
 
     function requestGetPreflight() {
@@ -2619,12 +2637,8 @@
     window.addEventListener('pagehide', publishIndexOffline);
     window.addEventListener('beforeunload', publishIndexOffline);
     document.addEventListener('visibilitychange', () => publishIndexPresence(indexPresenceMode));
-    setTimeout(markPageLoaderMinTimeDone, 600);
+    markPageLoaderMinTimeDone();
     hydrateGuideImages();
-    setTimeout(() => {
-      markPageLoaderReady();
-      markPageLoaderMinTimeDone();
-    }, 1000);
     renderCardKeyNotice();
     restoreActivationSession();
     autoActivateFromUrl();
