@@ -614,7 +614,8 @@ const __k = 173;
     function isUsPhoneSource(item = {}) {
       const sourcePool = String(item.sourcePool || '').toLowerCase();
       const sourceLabel = String(item.sourceLabel || '');
-      return sourcePool === 'us' || sourceLabel.includes('美区');
+      const digits = String(item.phone || '').trim().replace(/\D/g, '');
+      return sourcePool === 'us' || sourceLabel.includes('美区') || digits.length === 10;
     }
 
     function formatSvipPhone(phone, item = {}) {
