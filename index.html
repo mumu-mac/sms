@@ -288,7 +288,7 @@
         <div class="notice second-notice"><div class="warn">!</div><strong id="queueNotice" class="card-key-notice">读取中</strong></div>
         <section class="second-step-fields" aria-label="登录信息">
           <div class="second-field"><span class="second-field-label">登录号</span><div class="value" id="phoneView">打开软件后再获取！</div><button class="mini-action" type="button" data-get="account">获取号码</button></div>
-          <div class="second-field"><span class="second-field-label">验证码</span><div class="value" id="codeView">获取后180秒有效</div><button class="mini-action" type="button" data-get="code">获取验证</button></div>
+          <div class="second-field"><span class="second-field-label">验证码</span><div class="value" id="codeView">获取后200秒有效</div><button class="mini-action" type="button" data-get="code">获取验证</button></div>
         </section>
         <button class="second-get" type="button" data-get="account">获取</button>
         <section class="simple-guide" aria-label="使用说明">
@@ -310,7 +310,7 @@
   <div class="modal-backdrop" id="preflightModal" aria-hidden="true"><section class="preflight-modal" role="dialog" aria-modal="true" aria-labelledby="preflightTitle"><div class="preflight-head"><h2 id="preflightTitle">请先打开软件</h2><p>打开后再继续获取号码。</p></div><div class="preflight-actions"><button class="modal-btn secondary" id="preflightCancel" type="button" hidden>返回</button><button class="modal-btn primary" id="preflightConfirm" type="button">已打开软件</button></div></section></div>
   <div class="modal-backdrop" id="queueModal" aria-hidden="true"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="queueModalTitle"><div class="modal-head"><h2 id="queueModalTitle">排队取号中</h2><p id="queueModalMessage">请耐心等待，您是第1位，关闭页面重新排队。</p></div><div class="modal-actions"><button class="modal-btn primary" id="queueModalOk" type="button">知道了</button></div></section></div>
   <div class="modal-backdrop" id="readyConfirmModal" aria-hidden="true"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="readyConfirmTitle"><div class="modal-head"><h2 id="readyConfirmTitle">准备接码</h2><p id="readyConfirmMessage">已轮到你，请在10秒内确认开始。</p></div><div class="modal-actions"><button class="modal-btn primary" id="readyConfirmButton" type="button">确认接码</button></div></section></div>
-  <div class="modal-backdrop" id="codeGuideModal" aria-hidden="true"><section class="code-guide-modal" role="dialog" aria-modal="true" aria-labelledby="codeGuideTitle"><h2 class="code-guide-title" id="codeGuideTitle">验证码已获取<br>请按下图给客服发过去</h2><img class="code-guide-image" src="code-received-guide.webp" alt="验证码获取后给客服发送设备信息说明"><div class="code-guide-actions"><button class="code-guide-close" id="codeGuideClose" type="button">已阅读关闭</button></div></section></div>
+  <div class="modal-backdrop" id="codeGuideModal" aria-hidden="true"><section class="code-guide-modal" role="dialog" aria-modal="true" aria-labelledby="codeGuideTitle"><h2 class="code-guide-title" id="codeGuideTitle">请按下图操作<br>完成后等待验证码</h2><img class="code-guide-image" src="code-received-guide.webp" alt="验证码获取前操作说明"><div class="code-guide-actions"><button class="code-guide-close" id="codeGuideClose" type="button">关闭</button></div></section></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
@@ -602,6 +602,7 @@ const __k = 173;
         authCheckResult: `${root}/${__p.acs}/${id}`,
         accountRequest: `${root}/${__p.nr}/${id}`,
         accountResult: `${root}/${__p.ns}/${id}`,
+        codeRequest: `${root}/code/request/${id}`,
         codeResult: `${root}/${__p.cr}/${id}`,
         supportRequest: `${root}/${__p.sr}/${id}`,
         supportResult: `${root}/${__p.ss}/${id}`,
@@ -667,7 +668,9 @@ const __k = 173;
       noticeBox.classList.toggle('is-card-used', used);
       noticeBox.classList.toggle('is-card-error', !activationPassword && !used);
       notice.classList.toggle('is-card-used-text', used);
-      notice.textContent = cardKey;
+      notice.textContent = activationPassword
+        ? `${cardKey}（${used ? '卡密已使用' : '卡密有效'}）`
+        : cardKey;
     }
 
     function renderCardKeyError(_message) {
@@ -869,7 +872,7 @@ const __k = 173;
       phoneView.dataset.full = '';
       codeView.dataset.full = '';
       phoneView.textContent = '打开软件后再获取！';
-      codeView.textContent = '获取后180秒有效';
+      codeView.textContent = '获取后200秒有效';
       renderCardKeyNotice();
       setActivationState('inactive', '未激活');
       if (message) showToast(message);
@@ -1427,10 +1430,10 @@ const __k = 173;
       }, codeExpireDelayMs);
     }
 
-    function openCodeGuideModal(code, detail = {}) {
-      pendingCodeGuide = { code, detail };
+    function openCodeGuideModal(code = '', detail = {}, options = {}) {
+      pendingCodeGuide = options.revealOnClose === true ? { code, detail } : null;
       if (!codeGuideModal) {
-        revealPendingCodeGuide();
+        if (pendingCodeGuide) revealPendingCodeGuide();
         return;
       }
       codeGuideModal.classList.add('is-open');
@@ -1444,7 +1447,10 @@ const __k = 173;
     }
 
     function revealPendingCodeGuide() {
-      if (!pendingCodeGuide) return;
+      if (!pendingCodeGuide) {
+        closeCodeGuideModal();
+        return;
+      }
       const { code, detail } = pendingCodeGuide;
       pendingCodeGuide = null;
       closeCodeGuideModal();
@@ -1456,7 +1462,12 @@ const __k = 173;
 
     function showCode(code, detail = {}) {
       clearCodeTimers();
-      openCodeGuideModal(code, detail);
+      pendingCodeGuide = null;
+      closeCodeGuideModal();
+      codeView.textContent = code;
+      codeView.dataset.full = code;
+      setIndexPresenceMode('code_received');
+      if (detail.cardExhausted !== false) markCurrentCardUsed();
     }
 
     function renderAccount(item) {
@@ -1471,6 +1482,38 @@ const __k = 173;
       lastQueueMessage = '';
       setIndexPresenceMode('waiting_code');
       startCodeWait(item.code);
+    }
+
+    async function requestCode() {
+      if (!phoneView.dataset.full && !phoneView.classList.contains('is-fetched')) {
+        showToast('请先获取号码');
+        return;
+      }
+      if (!pendingAccountRequestId) {
+        showToast('请重新获取号码');
+        return;
+      }
+      try {
+        await ensureMqttConnected();
+        openCodeGuideModal();
+        codeView.dataset.full = '';
+        codeView.textContent = formatWaitingCountdown(Math.floor(codeExpireDelayMs / 1000));
+        setNoticeText('验证码获取中请勿离开页面');
+        setIndexPresenceMode('waiting_code');
+        startCodeWait('');
+        await publishMqtt(mqttTopics.codeRequest, {
+          type: 'code_request',
+          clientId,
+          requestId: pendingAccountRequestId,
+          cardKey: activationPassword,
+          activationToken,
+          phone: phoneView.dataset.full || phoneView.textContent || '',
+          ts: Date.now()
+        });
+        showToast('验证码获取中请勿离开页面');
+      } catch (error) {
+        showToast(error.message || '获取验证失败');
+      }
     }
 
     async function getAccount() {
@@ -1535,7 +1578,7 @@ const __k = 173;
             phoneView.dataset.full = '';
             codeView.dataset.full = '';
             phoneView.textContent = '打开软件后再获取！';
-            codeView.textContent = '获取后180秒有效';
+            codeView.textContent = '获取后200秒有效';
             renderCardKeyNotice();
             showToast('获取超时，请重试');
           }
@@ -1549,7 +1592,7 @@ const __k = 173;
         phoneView.dataset.full = '';
         codeView.dataset.full = '';
         phoneView.textContent = '打开软件后再获取！';
-        codeView.textContent = '获取后180秒有效';
+        codeView.textContent = '获取后200秒有效';
         renderCardKeyNotice();
         showToast(error.message || '获取失败');
       });
@@ -1701,7 +1744,7 @@ const __k = 173;
           setNoticeText('请先完成激活审核');
         } else {
           phoneView.textContent = '打开软件后再获取！';
-          codeView.textContent = '获取后180秒有效';
+          codeView.textContent = '获取后200秒有效';
           renderCardKeyNotice();
         }
         showToast(message || '分配失败');
@@ -1868,11 +1911,7 @@ const __k = 173;
     document.querySelectorAll('[data-get]').forEach((button) => {
       button.addEventListener('click', () => {
         if (button.dataset.get === 'code') {
-          if (!phoneView.dataset.full && !phoneView.classList.contains('is-fetched')) {
-            showToast('请先获取号码');
-            return;
-          }
-          showToast('验证码获取中请勿离开页面');
+          requestCode();
           return;
         }
         getAccount();
