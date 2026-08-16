@@ -299,7 +299,7 @@
             <p>3. 回到本页面等待验证码</p>
           </div>
           <figure class="guide-animation" aria-label="国际区号选择演示">
-            <img src="country-code-guide.webp" alt="点击区号并选择对应国际区号">
+            <img src="git.webp" alt="点击区号并选择对应国际区号">
           </figure>
         </section>
         <button class="support-btn" id="supportButton" type="button">联系客服</button>
@@ -614,8 +614,7 @@ const __k = 173;
     function isUsPhoneSource(item = {}) {
       const sourcePool = String(item.sourcePool || '').toLowerCase();
       const sourceLabel = String(item.sourceLabel || '');
-      const raw = String(item.phone || '').trim();
-      return sourcePool === 'us' || sourceLabel.includes('美区') || /^\+?1\d{10}$/.test(raw);
+      return sourcePool === 'us' || sourceLabel.includes('美区');
     }
 
     function formatSvipPhone(phone, item = {}) {
