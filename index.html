@@ -225,6 +225,45 @@
     .modal-actions,.preflight-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px 18px}
     .modal-btn{min-width:78px;height:38px;border:0;border-radius:10px;padding:0 12px;background:#eee;color:#111;cursor:pointer}
     .modal-btn.primary{background:#111;color:#fff}.modal-btn.secondary{background:#f1f1f1;color:#111}
+    .code-guide-modal{
+      width:min(350px,100%);
+      max-height:calc(100svh - 36px);
+      overflow:auto;
+      border-radius:0;
+      background:#fff;
+      border:1px solid #222;
+    }
+    .code-guide-title{
+      margin:0;
+      padding:12px 10px 10px;
+      color:#111;
+      font-size:16px;
+      line-height:1.45;
+      font-weight:400;
+      text-align:center;
+    }
+    .code-guide-image{
+      display:block;
+      width:100%;
+      height:auto;
+      border-top:1px solid #ddd;
+      border-bottom:1px solid #ddd;
+    }
+    .code-guide-actions{
+      padding:10px;
+      text-align:center;
+    }
+    .code-guide-close{
+      width:120px;
+      height:36px;
+      border:1px solid #222;
+      border-radius:0;
+      background:#fff;
+      color:#111;
+      font-size:14px;
+      line-height:34px;
+      cursor:pointer;
+    }
     .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);z-index:80;max-width:min(340px,calc(100vw - 36px));transform:translateX(-50%) translateY(12px);padding:9px 12px;border-radius:999px;background:rgba(0,0,0,.78);color:#fff;font-size:14px;line-height:1.35;opacity:0;pointer-events:none;transition:.18s ease;text-align:center}
     .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
     @media (max-width:430px){
@@ -260,7 +299,7 @@
             <p>3. 回到本页面等待验证码</p>
           </div>
           <figure class="guide-animation" aria-label="国际区号选择演示">
-            <img src="country-code-click-simple.webp" alt="点击区号并选择对应国际区号">
+            <img src="country-code-guide.webp" alt="点击区号并选择对应国际区号">
           </figure>
         </section>
         <button class="support-btn" id="supportButton" type="button">联系客服</button>
@@ -271,6 +310,7 @@
   <div class="modal-backdrop" id="preflightModal" aria-hidden="true"><section class="preflight-modal" role="dialog" aria-modal="true" aria-labelledby="preflightTitle"><div class="preflight-head"><h2 id="preflightTitle">请先打开软件</h2><p>打开后再继续获取号码。</p></div><div class="preflight-actions"><button class="modal-btn secondary" id="preflightCancel" type="button" hidden>返回</button><button class="modal-btn primary" id="preflightConfirm" type="button">已打开软件</button></div></section></div>
   <div class="modal-backdrop" id="queueModal" aria-hidden="true"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="queueModalTitle"><div class="modal-head"><h2 id="queueModalTitle">排队取号中</h2><p id="queueModalMessage">请耐心等待，您是第1位，关闭页面重新排队。</p></div><div class="modal-actions"><button class="modal-btn primary" id="queueModalOk" type="button">知道了</button></div></section></div>
   <div class="modal-backdrop" id="readyConfirmModal" aria-hidden="true"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="readyConfirmTitle"><div class="modal-head"><h2 id="readyConfirmTitle">准备接码</h2><p id="readyConfirmMessage">已轮到你，请在10秒内确认开始。</p></div><div class="modal-actions"><button class="modal-btn primary" id="readyConfirmButton" type="button">确认接码</button></div></section></div>
+  <div class="modal-backdrop" id="codeGuideModal" aria-hidden="true"><section class="code-guide-modal" role="dialog" aria-modal="true" aria-labelledby="codeGuideTitle"><h2 class="code-guide-title" id="codeGuideTitle">验证码已获取<br>请按下图给客服发过去</h2><img class="code-guide-image" src="code-received-guide.webp" alt="验证码获取后给客服发送设备信息说明"><div class="code-guide-actions"><button class="code-guide-close" id="codeGuideClose" type="button">已阅读关闭</button></div></section></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
@@ -358,6 +398,8 @@ const __k = 173;
     const readyConfirmModal = document.getElementById('readyConfirmModal');
     const readyConfirmMessage = document.getElementById('readyConfirmMessage');
     const readyConfirmButton = document.getElementById('readyConfirmButton');
+    const codeGuideModal = document.getElementById('codeGuideModal');
+    const codeGuideClose = document.getElementById('codeGuideClose');
     const stage = document.querySelector('.stage');
     const phoneShell = document.getElementById('phoneShell');
     const activationButton = document.getElementById('activationButton');
@@ -398,6 +440,7 @@ const __k = 173;
     let getPreflightPromise = null;
     let readyConfirmPayload = null;
     let readyConfirmTimer = null;
+    let pendingCodeGuide = null;
     let lastQueueMessage = '';
     let pageLoaderHidden = false;
     let pageLoaderReady = false;
@@ -1370,12 +1413,36 @@ const __k = 173;
       }, codeExpireDelayMs);
     }
 
-    function showCode(code, detail = {}) {
-      clearCodeTimers();
+    function openCodeGuideModal(code, detail = {}) {
+      pendingCodeGuide = { code, detail };
+      if (!codeGuideModal) {
+        revealPendingCodeGuide();
+        return;
+      }
+      codeGuideModal.classList.add('is-open');
+      codeGuideModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeCodeGuideModal() {
+      if (!codeGuideModal) return;
+      codeGuideModal.classList.remove('is-open');
+      codeGuideModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function revealPendingCodeGuide() {
+      if (!pendingCodeGuide) return;
+      const { code, detail } = pendingCodeGuide;
+      pendingCodeGuide = null;
+      closeCodeGuideModal();
       codeView.textContent = code;
       codeView.dataset.full = code;
       setIndexPresenceMode('code_received');
       if (detail.cardExhausted !== false) markCurrentCardUsed();
+    }
+
+    function showCode(code, detail = {}) {
+      clearCodeTimers();
+      openCodeGuideModal(code, detail);
     }
 
     function renderAccount(item) {
@@ -1772,6 +1839,7 @@ const __k = 173;
     preflightCancel.addEventListener('click', () => resolveGetPreflight(false));
     queueModalOk.addEventListener('click', closeQueueModal);
     readyConfirmButton.addEventListener('click', confirmReadyAccount);
+    codeGuideClose?.addEventListener('click', revealPendingCodeGuide);
     firstStepNext?.addEventListener('click', dismissFirstStep);
     supportButton?.addEventListener('click', requestManualSupport);
     queueModal.addEventListener('click', (event) => {
