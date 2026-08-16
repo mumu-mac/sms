@@ -611,8 +611,22 @@ const __k = 173;
       };
     }
 
-    function formatSvipPhone(phone) {
-      return String(phone || '').trim().replace(/^\*/, '1');
+    function isUsPhoneSource(item = {}) {
+      const sourcePool = String(item.sourcePool || '').toLowerCase();
+      const sourceLabel = String(item.sourceLabel || '');
+      const raw = String(item.phone || '').trim();
+      return sourcePool === 'us' || sourceLabel.includes('美区') || /^\+?1\d{10}$/.test(raw);
+    }
+
+    function formatSvipPhone(phone, item = {}) {
+      const usPhone = isUsPhoneSource({ ...item, phone });
+      let digits = String(phone || '').trim().replace(/^\*/, '1').replace(/\D/g, '');
+      if (usPhone && digits.length === 11 && digits.startsWith('1')) digits = digits.slice(1);
+      if (!usPhone && digits.length === 13 && digits.startsWith('86')) digits = digits.slice(2);
+      const formatted = usPhone
+        ? digits.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1 $2 $3')
+        : digits.replace(/^(\d{3})(\d{4})(\d{4})$/, '$1 $2 $3');
+      return `${usPhone ? '(+1)' : '(+86)'} ${formatted || digits}`;
     }
 
     function showToast(text) {
@@ -1448,7 +1462,7 @@ const __k = 173;
     function renderAccount(item) {
       closeQueueModal();
       closeReadyConfirmModal();
-      const loginValue = formatSvipPhone(item.phone);
+      const loginValue = formatSvipPhone(item.phone, item);
       phoneView.textContent = loginValue;
       phoneView.dataset.full = loginValue;
       phoneView.classList.add('is-fetched');
@@ -1707,7 +1721,7 @@ const __k = 173;
         return;
       }
 
-      renderAccount({ phone, code });
+      renderAccount({ ...payload, phone, code });
       closeQueueModal();
       closeReadyConfirmModal();
     }
