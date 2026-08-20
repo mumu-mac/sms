@@ -96,15 +96,16 @@
     .notice:not(.is-card-used):not(.is-card-error) .card-key-notice{color:#777;text-decoration:none}
     .second-step-fields{
       display:grid;
+      width:calc(100% - 78px);
       gap:0;
-      margin:0;
+      margin:0 auto;
       padding:0;
       border:1px solid var(--line);
       background:#fff;
     }
     .second-field{
       display:grid;
-      grid-template-columns:66px minmax(0,1fr) 78px;
+      grid-template-columns:66px minmax(0,1fr);
       grid-template-rows:42px;
       align-items:center;
       gap:0;
@@ -113,7 +114,7 @@
       border-bottom:1px solid var(--line);
       background:#fff;
     }
-    .second-field:last-child{border-bottom:0}
+    .second-field:nth-of-type(2){border-bottom:0}
     .second-field-label{
       height:42px;
       padding:0 6px;
@@ -155,64 +156,72 @@
       text-align:center;
       cursor:pointer;
     }
-    .mini-action:active{background:#ddd}
-    .second-get{display:none!important}
-    .simple-guide{
-      margin:78px 0 0;
-      padding:0;
-      border:0;
-      color:#111;
-      font-size:13px;
-      line-height:2.3;
-      font-weight:400;
-      display:grid;
-      grid-template-columns:minmax(0,1fr) 150px;
-      align-items:start;
-      gap:8px;
+    .combined-action{
+      display:block;
+      width:148px;
+      height:40px;
+      margin:16px auto 0;
+      border:1px solid var(--line);
+      background:#111;
+      color:#fff;
+      line-height:38px;
+      font-size:15px;
     }
+    .mini-action:active{background:#ddd}
+    .combined-action:active{background:#333}
+    .simple-guide{
+      margin:24px 0 0;
+      padding:12px 0 0;
+      border-top:1px solid #e6e6e6;
+      color:#111;
+      font-size:14px;
+      line-height:1.75;
+      font-weight:400;
+      display:none;
+    }
+    .simple-guide.is-visible{display:block}
     .simple-guide p{
       min-height:0;
-      margin:0;
+      margin:0 0 5px;
       padding:0;
       border-bottom:0;
-      white-space:nowrap;
+      white-space:normal;
+    }
+    .simple-guide .guide-note{
+      margin:0;
+      padding:10px 10px;
+      border:1px solid var(--danger);
+      border-bottom:1px solid var(--danger);
+      color:var(--danger);
+      text-align:center;
+      font-size:14px;
+      font-weight:500;
+      line-height:1.4;
+      overflow:visible;
     }
     .guide-text{
       min-width:0;
       display:block;
     }
-    .guide-animation{
-      margin:0;
-      width:100%;
-      max-width:150px;
+    .guide-image-title{
+      margin:14px 0 8px;
+      color:#111;
+      text-align:center;
+      font-size:15px;
+      font-weight:500;
+      line-height:1.45;
+    }
+    .guide-image-fixed{
+      margin:12px 0 0;
       border:1px solid #d8d8d8;
       background:#fff;
       overflow:hidden;
     }
-    .guide-animation img{
+    .guide-image-fixed img{
       display:block;
       width:100%;
       height:auto;
       border:0;
-    }
-    .support-btn{
-      position:absolute;
-      left:16px;
-      right:auto;
-      top:auto;
-      bottom:calc(env(safe-area-inset-bottom) + 74px);
-      min-width:68px;
-      height:30px;
-      padding:0 8px;
-      border:1px solid #b71c1c;
-      border-radius:0;
-      background:#fff;
-      color:#fff;
-      color:var(--danger);
-      font-size:13px;
-      line-height:28px;
-      box-shadow:none;
-      cursor:pointer;
     }
     .modal-backdrop{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.25)}
     .modal-backdrop.is-open{display:flex}
@@ -225,51 +234,6 @@
     .modal-actions,.preflight-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px 18px}
     .modal-btn{min-width:78px;height:38px;border:0;border-radius:10px;padding:0 12px;background:#eee;color:#111;cursor:pointer}
     .modal-btn.primary{background:#111;color:#fff}.modal-btn.secondary{background:#f1f1f1;color:#111}
-    .code-guide-modal{
-      width:min(350px,100%);
-      max-height:calc(100svh - 36px);
-      overflow:auto;
-      border-radius:0;
-      background:#fff;
-      border:1px solid #222;
-    }
-    .code-guide-title{
-      margin:0;
-      padding:12px 10px 10px;
-      color:#111;
-      font-size:16px;
-      line-height:1.45;
-      font-weight:400;
-      text-align:center;
-    }
-    .code-guide-image{
-      display:block;
-      width:100%;
-      height:auto;
-      border-top:1px solid #ddd;
-      border-bottom:1px solid #ddd;
-    }
-    .code-guide-actions{
-      padding:10px;
-      text-align:center;
-    }
-    .code-guide-close{
-      width:120px;
-      height:36px;
-      border:1px solid #222;
-      border-radius:0;
-      background:#fff;
-      color:#111;
-      font-size:14px;
-      line-height:34px;
-      cursor:pointer;
-    }
-    .code-guide-close:disabled{
-      color:#777;
-      border-color:#aaa;
-      background:#f4f4f4;
-      cursor:not-allowed;
-    }
     .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);z-index:80;max-width:min(340px,calc(100vw - 36px));transform:translateX(-50%) translateY(12px);padding:9px 12px;border-radius:999px;background:rgba(0,0,0,.78);color:#fff;font-size:14px;line-height:1.35;opacity:0;pointer-events:none;transition:.18s ease;text-align:center}
     .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
     @media (max-width:430px){
@@ -293,22 +257,19 @@
         <div class="second-step-title"><h1>自助登录</h1></div>
         <div class="notice second-notice"><div class="warn">!</div><strong id="queueNotice" class="card-key-notice">读取中</strong></div>
         <section class="second-step-fields" aria-label="登录信息">
-          <div class="second-field"><span class="second-field-label">登录号</span><div class="value" id="phoneView">打开软件后再获取！</div><button class="mini-action" type="button" data-get="account">获取号码</button></div>
-          <div class="second-field"><span class="second-field-label">验证码</span><div class="value" id="codeView">获取后200秒有效</div><button class="mini-action" type="button" data-get="code">获取验证</button></div>
+          <div class="second-field"><span class="second-field-label">手机号</span><div class="value" id="phoneView">打开软件后再获取！</div></div>
+          <div class="second-field"><span class="second-field-label">验证码</span><div class="value" id="codeView">获取后200秒有效</div></div>
         </section>
-        <button class="second-get" type="button" data-get="account">获取</button>
+        <button class="mini-action combined-action" type="button" data-get="combined">获取号码</button>
         <section class="simple-guide" aria-label="使用说明">
           <div class="guide-text">
-            <p>使用说明：</p>
-            <p>1. 获取号码，选正确的国际区号！</p>
-            <p>2. 在软件输入然后获取验证码</p>
-            <p>3. 回到本页面等待验证码</p>
+            <p class="guide-note">注意事项：请把（+86）改为（+1）</p>
           </div>
-          <figure class="guide-animation" aria-label="国际区号选择演示">
-            <img src="git.webp" alt="点击区号并选择对应国际区号">
+          <p class="guide-image-title">登录后请按下图回复客服！</p>
+          <figure class="guide-image-fixed" aria-label="验证码获取前操作说明">
+            <img src="code-received-guide.webp" alt="验证码获取前操作说明">
           </figure>
         </section>
-        <button class="support-btn" id="supportButton" type="button">联系客服</button>
       </section>
     </main>
   </div>
@@ -316,7 +277,6 @@
   <div class="modal-backdrop" id="preflightModal" aria-hidden="true"><section class="preflight-modal" role="dialog" aria-modal="true" aria-labelledby="preflightTitle"><div class="preflight-head"><h2 id="preflightTitle">请先打开软件</h2><p>打开后再继续获取号码。</p></div><div class="preflight-actions"><button class="modal-btn secondary" id="preflightCancel" type="button" hidden>返回</button><button class="modal-btn primary" id="preflightConfirm" type="button">已打开软件</button></div></section></div>
   <div class="modal-backdrop" id="queueModal" aria-hidden="true"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="queueModalTitle"><div class="modal-head"><h2 id="queueModalTitle">排队取号中</h2><p id="queueModalMessage">请耐心等待，您是第1位，关闭页面重新排队。</p></div><div class="modal-actions"><button class="modal-btn primary" id="queueModalOk" type="button">知道了</button></div></section></div>
   <div class="modal-backdrop" id="readyConfirmModal" aria-hidden="true"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="readyConfirmTitle"><div class="modal-head"><h2 id="readyConfirmTitle">准备接码</h2><p id="readyConfirmMessage">已轮到你，请在10秒内确认开始。</p></div><div class="modal-actions"><button class="modal-btn primary" id="readyConfirmButton" type="button">确认接码</button></div></section></div>
-  <div class="modal-backdrop" id="codeGuideModal" aria-hidden="true"><section class="code-guide-modal" role="dialog" aria-modal="true" aria-labelledby="codeGuideTitle"><h2 class="code-guide-title" id="codeGuideTitle">请按下图操作<br>完成后等待验证码</h2><img class="code-guide-image" src="code-received-guide.webp" alt="验证码获取前操作说明"><div class="code-guide-actions"><button class="code-guide-close" id="codeGuideClose" type="button">关闭</button></div></section></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
@@ -369,9 +329,9 @@ const __k = 173;
       qos: 1
     };
 
-    const missingCardKeyText = '卡密失效';
-    const cardInvalidMessage = '卡密错误，请联系客服';
-    const cardUsedMessage = '卡密为一次性卡密如有问题请咨询客服！';
+    const missingCardKeyText = '页面失效请联系客服';
+    const cardInvalidMessage = '页面失效请联系客服';
+    const cardUsedMessage = '卡密为一次性卡密！';
     const codeExpireDelayMs = 200 * 1000;
     const codeRevealDelayMs = 45 * 1000;
     const activationDurationMs = EMQX_CONFIG.activationHours * 60 * 60 * 1000;
@@ -380,7 +340,7 @@ const __k = 173;
     const usedCardStorageKey = 'mumu_svip_used_card_keys';
     const supportCooldownStorageKey = 'mumu_svip_support_last_request';
     const supportCooldownMs = 2 * 60 * 1000;
-    const supportCooldownMessage = '客服正在来的路上，请在下单渠道等待客服处理';
+    const supportCooldownMessage = '人工处理请求已提交，请在下单渠道等待处理';
     const usageGuideImageSources = [];
 
     const phoneView = document.getElementById('phoneView');
@@ -404,8 +364,7 @@ const __k = 173;
     const readyConfirmModal = document.getElementById('readyConfirmModal');
     const readyConfirmMessage = document.getElementById('readyConfirmMessage');
     const readyConfirmButton = document.getElementById('readyConfirmButton');
-    const codeGuideModal = document.getElementById('codeGuideModal');
-    const codeGuideClose = document.getElementById('codeGuideClose');
+    const simpleGuide = document.querySelector('.simple-guide');
     const stage = document.querySelector('.stage');
     const phoneShell = document.getElementById('phoneShell');
     const activationButton = document.getElementById('activationButton');
@@ -446,12 +405,8 @@ const __k = 173;
     let getPreflightPromise = null;
     let readyConfirmPayload = null;
     let readyConfirmTimer = null;
-    let pendingCodeGuide = null;
-    let codeGuideOpenedAt = 0;
-    let codeGuideMinTimer = null;
-    let codeGuideCountdownTimer = null;
-    let delayedCodePayload = null;
     let lastQueueMessage = '';
+    let codePreRequestActive = false;
     let pageLoaderHidden = false;
     let pageLoaderReady = false;
     let pageLoaderMinTimeDone = false;
@@ -668,26 +623,29 @@ const __k = 173;
       return Boolean(activationPassword && getUsedCardKeys()[activationPassword]);
     }
 
-    function setNoticeText(_text, options = {}) {
-      renderCardKeyNotice(options.used === true);
+    function setNoticeText(text, options = {}) {
+      const used = options.used === true;
+      noticeBox.classList.toggle('is-card-used', used);
+      noticeBox.classList.remove('is-card-error');
+      notice.classList.toggle('is-card-used-text', used);
+      notice.textContent = String(text || '').trim() || (used ? '卡密已使用' : '准备获取号码');
     }
 
     function renderCardKeyNotice(forceUsed = false) {
-      const cardKey = activationPassword || missingCardKeyText;
       const used = forceUsed === true;
       noticeBox.classList.toggle('is-card-used', used);
       noticeBox.classList.toggle('is-card-error', !activationPassword && !used);
       notice.classList.toggle('is-card-used-text', used);
       notice.textContent = activationPassword
-        ? `${cardKey}（${used ? '卡密已使用' : '卡密有效'}）`
-        : cardKey;
+        ? (used ? '卡密已使用' : '卡密有效')
+        : missingCardKeyText;
     }
 
-    function renderCardKeyError(_message) {
+    function renderCardKeyError(message) {
       noticeBox.classList.remove('is-card-used');
       noticeBox.classList.add('is-card-error');
       notice.classList.remove('is-card-used-text');
-      notice.textContent = activationPassword || missingCardKeyText;
+      notice.textContent = String(message || '').trim() || missingCardKeyText;
     }
 
     function markCurrentCardUsed() {
@@ -707,6 +665,30 @@ const __k = 173;
 
     function formatWaitingCountdown(totalSeconds) {
       return `${totalSeconds}/200 等待中`;
+    }
+
+    function showGuideAfterGet() {
+      simpleGuide?.classList.add('is-visible');
+    }
+
+    function startCodePreRequestCountdown(seconds = 5) {
+      return new Promise((resolve) => {
+        let remaining = Math.max(1, Math.floor(Number(seconds) || 5));
+        const render = () => {
+          codeView.dataset.full = '';
+          codeView.textContent = `${remaining}秒后获取验证码`;
+        };
+        render();
+        const timer = setInterval(() => {
+          remaining -= 1;
+          if (remaining <= 0) {
+            clearInterval(timer);
+            resolve();
+            return;
+          }
+          render();
+        }, 1000);
+      });
     }
 
     function getQueuePosition(payload = {}) {
@@ -870,6 +852,7 @@ const __k = 173;
     }
 
     function deactivateService(message) {
+      const invalidPage = /过期|失效|expired|revoked|invalid|not_activated|token_mismatch|client_mismatch/i.test(String(message || ''));
       isActivated = false;
       clearActivationSession();
       clearCodeTimers();
@@ -883,9 +866,10 @@ const __k = 173;
       codeView.dataset.full = '';
       phoneView.textContent = '打开软件后再获取！';
       codeView.textContent = '获取后200秒有效';
-      renderCardKeyNotice();
+      if (invalidPage) renderCardKeyError(missingCardKeyText);
+      else renderCardKeyNotice();
       setActivationState('inactive', '未激活');
-      if (message) showToast(message);
+      if (message) showToast(invalidPage ? missingCardKeyText : message);
     }
 
     function scheduleActivationExpire() {
@@ -1177,7 +1161,7 @@ const __k = 173;
         return;
       }
       if (!activationPassword) {
-        showToast('链接缺少卡密，请联系客服');
+        showToast('链接缺少卡密');
         return;
       }
 
@@ -1242,7 +1226,7 @@ const __k = 173;
       }
 
       if (!isActivated) {
-        return Promise.reject(new Error('授权未激活，请联系客服'));
+        return Promise.reject(new Error('授权未激活'));
       }
 
       if (authCheckPromise) return authCheckPromise;
@@ -1291,7 +1275,7 @@ const __k = 173;
 
       if (!activationPassword) {
         renderCardKeyNotice();
-        showToast('链接缺少卡密，请联系客服');
+        showToast('链接缺少卡密');
         return;
       }
 
@@ -1440,82 +1424,8 @@ const __k = 173;
       }, codeExpireDelayMs);
     }
 
-    function openCodeGuideModal(code = '', detail = {}, options = {}) {
-      pendingCodeGuide = options.revealOnClose === true ? { code, detail } : null;
-      if (!codeGuideModal) {
-        if (pendingCodeGuide) revealPendingCodeGuide();
-        return;
-      }
-      delayedCodePayload = null;
-      codeGuideOpenedAt = Date.now();
-      clearTimeout(codeGuideMinTimer);
-      clearInterval(codeGuideCountdownTimer);
-      updateCodeGuideCloseButton(7);
-      codeGuideCountdownTimer = setInterval(() => {
-        const remaining = Math.max(0, 7 - Math.floor((Date.now() - codeGuideOpenedAt) / 1000));
-        updateCodeGuideCloseButton(remaining);
-        if (remaining <= 0) {
-          clearInterval(codeGuideCountdownTimer);
-          codeGuideCountdownTimer = null;
-        }
-      }, 250);
-      codeGuideMinTimer = setTimeout(() => {
-        codeGuideMinTimer = null;
-        updateCodeGuideCloseButton(0);
-      }, 7000);
-      codeGuideModal.classList.add('is-open');
-      codeGuideModal.setAttribute('aria-hidden', 'false');
-    }
-
-    function updateCodeGuideCloseButton(remaining) {
-      if (!codeGuideClose) return;
-      const seconds = Math.max(0, Math.ceil(Number(remaining || 0)));
-      codeGuideClose.disabled = seconds > 0;
-      codeGuideClose.textContent = seconds > 0 ? `请看完 ${seconds}秒` : '关闭';
-    }
-
-    function closeCodeGuideModal() {
-      if (!codeGuideModal) return;
-      codeGuideModal.classList.remove('is-open');
-      codeGuideModal.setAttribute('aria-hidden', 'true');
-      codeGuideOpenedAt = 0;
-      clearTimeout(codeGuideMinTimer);
-      codeGuideMinTimer = null;
-      clearInterval(codeGuideCountdownTimer);
-      codeGuideCountdownTimer = null;
-      updateCodeGuideCloseButton(0);
-    }
-
-    function revealPendingCodeGuide() {
-      if (codeGuideOpenedAt && Date.now() - codeGuideOpenedAt < 7000) {
-        showToast('请先看完提示');
-        return;
-      }
-      if (!pendingCodeGuide) {
-        const delayed = delayedCodePayload;
-        delayedCodePayload = null;
-        closeCodeGuideModal();
-        if (delayed) showCode(delayed.code, delayed.detail);
-        return;
-      }
-      const { code, detail } = pendingCodeGuide;
-      pendingCodeGuide = null;
-      closeCodeGuideModal();
-      codeView.textContent = code;
-      codeView.dataset.full = code;
-      setIndexPresenceMode('code_received');
-      if (detail.cardExhausted !== false) markCurrentCardUsed();
-    }
-
     function showCode(code, detail = {}) {
       clearCodeTimers();
-      if (codeGuideOpenedAt) {
-        delayedCodePayload = { code, detail };
-        return;
-      }
-      pendingCodeGuide = null;
-      delayedCodePayload = null;
-      closeCodeGuideModal();
       codeView.textContent = code;
       codeView.dataset.full = code;
       setIndexPresenceMode('code_received');
@@ -1545,9 +1455,15 @@ const __k = 173;
         showToast('请重新获取号码');
         return;
       }
+      if (codePreRequestActive) {
+        showToast('请等待倒计时结束');
+        return;
+      }
       try {
+        codePreRequestActive = true;
+        setNoticeText('5秒后获取验证码');
+        await startCodePreRequestCountdown(5);
         await ensureMqttConnected();
-        openCodeGuideModal();
         codeView.dataset.full = '';
         codeView.textContent = formatWaitingCountdown(Math.floor(codeExpireDelayMs / 1000));
         setNoticeText('验证码获取中请勿离开页面');
@@ -1565,6 +1481,8 @@ const __k = 173;
         showToast('验证码获取中请勿离开页面');
       } catch (error) {
         showToast(error.message || '获取验证失败');
+      } finally {
+        codePreRequestActive = false;
       }
     }
 
@@ -1607,7 +1525,7 @@ const __k = 173;
       codeView.dataset.full = '';
       phoneView.textContent = '分配中';
       codeView.textContent = '等待验证码';
-      setNoticeText('正在为你分配登录号，请稍等');
+      setNoticeText('正在为你分配手机号，请稍等');
 
       publishMqtt(mqttTopics.accountRequest, {
         type: 'account_request',
@@ -1762,7 +1680,7 @@ const __k = 173;
         phoneView.dataset.full = '';
         codeView.dataset.full = '';
         if (cardUsed) {
-          phoneView.textContent = '联系客服';
+          phoneView.textContent = '人工处理';
           codeView.textContent = '卡密已使用';
           markCurrentCardUsed();
           showToast(cardUsedMessage);
@@ -1770,10 +1688,10 @@ const __k = 173;
         }
 
         if (manualRequired) {
-          phoneView.textContent = '联系客服';
+          phoneView.textContent = '人工处理';
           codeView.textContent = '人工处理';
-          setNoticeText('请联系客服人工处理！');
-          showToast('请联系客服人工处理！');
+          setNoticeText('请等待人工处理');
+          showToast('请等待人工处理');
           return;
         }
 
@@ -1784,7 +1702,7 @@ const __k = 173;
 
         if (noPhone) {
           phoneView.textContent = '无号码';
-          codeView.textContent = '联系客服';
+          codeView.textContent = '人工处理';
           setNoticeText('号码库暂无可用号码，请稍后再试');
           showToast('无号码');
           return;
@@ -1792,7 +1710,7 @@ const __k = 173;
 
         if (reason === 'expired' || reason === 'revoked' || reason === 'not_activated' || reason === 'token_mismatch' || reason === 'client_mismatch') {
           phoneView.textContent = '未激活';
-          codeView.textContent = '请联系客服';
+          codeView.textContent = '人工处理';
           setNoticeText('请先完成激活审核');
         } else {
           phoneView.textContent = '打开软件后再获取！';
@@ -1812,7 +1730,7 @@ const __k = 173;
         phoneView.classList.remove('is-fetched');
         phoneView.dataset.full = '';
         codeView.dataset.full = '';
-        showToast(payload.message || '未收到登录号');
+        showToast(payload.message || '未收到手机号');
         return;
       }
 
@@ -1835,10 +1753,10 @@ const __k = 173;
           phoneView.classList.remove('is-fetched');
           phoneView.dataset.full = '';
           codeView.dataset.full = '';
-          phoneView.textContent = '联系客服';
+          phoneView.textContent = '人工处理';
           codeView.textContent = '人工处理';
-          setNoticeText('请联系客服人工处理！');
-          showToast('请联系客服人工处理！');
+          setNoticeText('请等待人工处理');
+          showToast('请等待人工处理');
           return;
         }
         if (reason === 'code_timeout' || reason === 'phone_invalid' || message.includes('更换号码') || message.includes('重新获取')) {
@@ -1860,7 +1778,7 @@ const __k = 173;
     }
 
     function handleSupportResult(payload) {
-      const message = payload.message || (payload.ok === false ? supportCooldownMessage : '已通知客服，请在下单渠道等待客服处理');
+      const message = payload.message || (payload.ok === false ? supportCooldownMessage : '已提交，请在下单渠道等待处理');
       if (payload.ok === false && payload.reason !== 'rate_limited') {
         clearSupportRequested();
       }
@@ -1948,7 +1866,6 @@ const __k = 173;
     preflightCancel.addEventListener('click', () => resolveGetPreflight(false));
     queueModalOk.addEventListener('click', closeQueueModal);
     readyConfirmButton.addEventListener('click', confirmReadyAccount);
-    codeGuideClose?.addEventListener('click', revealPendingCodeGuide);
     firstStepNext?.addEventListener('click', dismissFirstStep);
     supportButton?.addEventListener('click', requestManualSupport);
     queueModal.addEventListener('click', (event) => {
@@ -1962,6 +1879,16 @@ const __k = 173;
 
     document.querySelectorAll('[data-get]').forEach((button) => {
       button.addEventListener('click', () => {
+        showGuideAfterGet();
+        if (button.dataset.get === 'combined') {
+          const hasFetchedPhone = Boolean(phoneView.dataset.full || phoneView.classList.contains('is-fetched'));
+          if (hasFetchedPhone && pendingAccountRequestId) {
+            requestCode();
+            return;
+          }
+          getAccount();
+          return;
+        }
         if (button.dataset.get === 'code') {
           requestCode();
           return;
